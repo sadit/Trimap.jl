@@ -1,0 +1,7 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+PlotlyLight = "ca7969ec-10b3-423e-8d99-40f33abb42bf"
+Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+SimilaritySearch = "053f045d-5466-53fd-b400-a066f88fe02a"
+Trimap = "40cfb450-f63e-465e-a29e-79c640755386"

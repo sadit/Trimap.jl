@@ -307,7 +307,7 @@ pmodel = fit(ParametricTrimap, X, knns, dists; out_dim=2)
 """
 function fit(
     ::Type{ParametricTrimap},
-    X::AbstractMatrix,
+    X::AbstractMatrix{Float32},
     knns::AbstractMatrix{UInt32},
     dists::AbstractMatrix{Float32};
     model::Union{Nothing, LuxCore.AbstractLuxLayer}=nothing,
@@ -335,8 +335,7 @@ function fit(
         Optimisers.AdamW(Float32(learning_rate))
     end
 
-    X32 = Float32.(X)
-    in_dim, n = size(X32)
+    in_dim, n = size(X)
 
     size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
     size(knns, 2) == n || throw(DimensionMismatch("Number of columns in knns ($(size(knns, 2))) must match number of columns in X ($n)"))
@@ -368,7 +367,7 @@ function fit(
     )
 
     ps, st = train_parametric_trimap(
-        net, X32, i, j, k, w;
+        net, X, i, j, k, w;
         max_iters=final_iters, opt=optimizer, rng=rng, verbose=verbose
     )
 
@@ -385,12 +384,11 @@ function fit(m::Module, X::AbstractMatrix, knns::AbstractMatrix{UInt32}, dists::
 end
 
 """
-    predict(m::ParametricTrimap, X::AbstractMatrix) -> Matrix{Float32}
+    predict(m::ParametricTrimap, X::AbstractMatrix{Float32}) -> Matrix{Float32}
 
 Maps unseen high-dimensional data points to embedding coordinates using the trained neural network.
 """
-function predict(m::ParametricTrimap, X::AbstractMatrix)
-    X32 = Float32.(X)
-    Y, _ = Lux.apply(m.model, X32, m.ps, m.st)
+function predict(m::ParametricTrimap, X::AbstractMatrix{Float32})
+    Y, _ = Lux.apply(m.model, X, m.ps, m.st)
     Y
 end
