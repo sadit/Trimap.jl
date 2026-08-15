@@ -1,0 +1,30 @@
+name = "Trimap"
+uuid = "40cfb450-f63e-465e-a29e-79c640755386"
+authors = ["Eric S. Tellez <e.tellez@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+LuxCore = "bb33d45b-7691-41d6-9220-0943567d0623"
+Optimisers = "3bd65402-5787-11e9-1adc-39752487f4e2"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SimilaritySearch = "053f045d-5466-53fd-b400-a066f88fe02a"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
+
+[compat]
+Distances = "0.10"
+Lux = "1"
+LuxCore = "0.1, 1"
+Optimisers = "0.3, 0.4"
+SimilaritySearch = "1.1"
+Zygote = "0.6"
+julia = "1.10, 1.11, 1.12"
