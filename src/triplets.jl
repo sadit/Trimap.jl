@@ -1,52 +1,82 @@
 # This file is a part of Trimap.jl
 
 """
-    generate_triplets(index_or_data;
+    generate_triplets(knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
                       n_inliers=15,
                       n_outliers=5,
                       n_random=5,
                       weight_adj=0.1,
-                      dist=Dist.L2(),
-                      searchctx=nothing,
                       rng=Random.default_rng()) -> (triplets_i, triplets_j, triplets_k, weights)
 
-Generates TriMAP triplet constraints (i, j, k) where item j is closer to i than item k in the original space.
+Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i` than item `k` in the original space.
+
+# Arguments
+- `knns`: `(k × n)` matrix of nearest neighbor IDs of type `UInt32` (e.g., from `allknn` or `searchbatch`).
+- `dists`: `(k × n)` matrix of corresponding distances of type `Float32`.
+
+# Keyword Arguments
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
+- `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
+- `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
+- `rng`: Random number generator for negative sampling. Default: `Random.default_rng()`.
+
+# Returns
+- `(triplets_i, triplets_j, triplets_k, weights)`: 1-based integer indices (`Int32`) and float weights (`Float32`) for triplet loss.
+
+# Examples
+
+## Exact search with `ExhaustiveSearch`
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN (e.g., k = 25)
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Generate triplets
+triplets_i, triplets_j, triplets_k, weights = generate_triplets(knns, dists; n_inliers=10, n_outliers=5, n_random=5)
+```
+
+## Approximate search with `SearchGraph` (recall < 1)
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall < 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Generate triplets
+triplets_i, triplets_j, triplets_k, weights = generate_triplets(knns, dists; n_inliers=10, n_outliers=5, n_random=5)
+```
 """
 function generate_triplets(
-    index_or_data;
+    knns::AbstractMatrix{UInt32},
+    dists::AbstractMatrix{Float32};
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
     weight_adj::Real=0.1,
-    dist=Dist.L2(),
-    searchctx=nothing,
     rng::Random.AbstractRNG=Random.default_rng()
 )
-    # Ensure index
-    index = if index_or_data isa AbstractSearchIndex
-        index_or_data
-    elseif index_or_data isa AbstractDatabase
-        ExhaustiveSearch(dist, index_or_data)
-    elseif index_or_data isa AbstractMatrix
-        ExhaustiveSearch(dist, MatrixDatabase(Float32.(index_or_data)))
-    else
-        ExhaustiveSearch(dist, VectorDatabase(index_or_data))
-    end
-
-    n = length(index)
-    k_knn = min(n, n_inliers + n_outliers + 1)
-
-    # 1. kNN graph for nearest neighbors (inliers) and margin outliers
-    ctx = if searchctx !== nothing
-        searchctx
-    elseif index isa SearchGraph
-        SearchGraphContext()
-    else
-        GenericContext()
-    end
-
-    knns, dists = allknn(index, ctx, k_knn)
-    # knns is (k_knn, n) of UInt32, dists is (k_knn, n) of Float32
+    size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
+    k_knn, n = size(knns)
 
     triplets_i = Int32[]
     triplets_j = Int32[]
@@ -61,13 +91,13 @@ function generate_triplets(
     sizehint!(weights, n_triplets_est)
 
     for i in 1:n
-        # Filter out self
+        # Filter out self and invalid identifiers
         neighbors = Int32[]
         distances = Float32[]
         for row in 1:k_knn
             nid = knns[row, i]
             ndist = dists[row, i]
-            if nid != i
+            if nid != i && nid > 0 && nid <= n
                 push!(neighbors, Int32(nid))
                 push!(distances, Float32(ndist))
             end

@@ -23,7 +23,8 @@ export
     # Triplet extraction & loss
     generate_triplets,
     trimap_loss,
-    # Optimization
+    # Initialization & optimization
+    pca_init,
     optimize_embedding_triplets,
     train_parametric_trimap
 

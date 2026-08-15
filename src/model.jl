@@ -24,30 +24,29 @@ struct ParametricTrimap{L<:LuxCore.AbstractLuxLayer, P, S}
 end
 
 """
-    pca_init(X::AbstractMatrix{Float32}, out_dim::Int; scale=0.01f0)
+    pca_init(X::AbstractMatrix{Float32}, out_dim::Integer; scale::Real=0.01f0) -> Matrix{Float32}
 
-Computes PCA-based initialization scaled by `scale`.
+Computes PCA-based initialization of size `(out_dim, n)` from high-dimensional data `X` of size `(dim, n)`, scaled by `scale`.
 """
-function pca_init(X::AbstractMatrix{Float32}, out_dim::Int; scale::Float32=0.01f0)
+function pca_init(X::AbstractMatrix{Float32}, out_dim::Integer; scale::Real=0.01f0)
     # X is (dim, n)
     d, n = size(X)
     X_mean = mean(X, dims=2)
     Xc = X .- X_mean
-    # SVD of covariance or centered data
+    # SVD of centered data
     F = svd(Xc)
-    # U is (d, min(d, n)), Vt is (min(d, n), n)
     # Principal components projection:
     k = min(out_dim, size(F.Vt, 1))
     Y = zeros(Float32, out_dim, n)
-    # F.Vt[1:k, :] is (k, n)
     Y[1:k, :] .= F.Vt[1:k, :]
-    Y .* scale
+    Y .* Float32(scale)
 end
 
 """
-    fit(::Type{Trimap}, index_or_data;
+    fit(::Type{Trimap}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
         out_dim=2,
         maxoutdim=out_dim,
+        Y_init=nothing,
         n_inliers=15,
         n_outliers=5,
         n_random=5,
@@ -56,17 +55,79 @@ end
         n_epochs=max_iters,
         opt=nothing,
         learning_rate=0.1,
-        dist=Dist.L2(),
-        searchctx=nothing,
+        rng=Random.default_rng(),
         verbose=false) -> Trimap
 
-Fits non-parametric TriMAP dimensionality reduction.
+Fits non-parametric TriMAP dimensionality reduction given precomputed nearest neighbor IDs (`knns::AbstractMatrix{UInt32}`) and distances (`dists::AbstractMatrix{Float32}`).
+
+# Arguments
+- `knns`: `(k × n)` matrix of nearest neighbor IDs of type `UInt32` (e.g. from `allknn` or `searchbatch`).
+- `dists`: `(k × n)` matrix of nearest neighbor distances of type `Float32`.
+
+# Keyword Arguments
+- `out_dim`: Target embedding dimension (default: `2`).
+- `maxoutdim`: Alias for `out_dim`.
+- `Y_init`: Optional initial embedding matrix of size `(out_dim, n)` (e.g. `Matrix{Float32}`). If `nothing`, initialized with Gaussian noise `randn * 0.01`. You may pass `pca_init(X, out_dim)`.
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
+- `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
+- `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
+- `max_iters` / `n_epochs`: Optimization iterations. Default: `400`.
+- `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
+- `learning_rate`: Learning rate if `opt` is not specified. Default: `0.1`.
+- `rng`: Random number generator. Default: `Random.default_rng()`.
+- `verbose`: Whether to log iteration loss. Default: `false`.
+
+# Examples
+
+## Exact search with `ExhaustiveSearch`
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN (e.g., k = 25)
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Fit non-parametric TriMAP
+model = fit(Trimap, knns, dists; out_dim=2)
+# model.embedding is of size (2, 500)
+```
+
+## Approximate search with `SearchGraph` (recall < 1)
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall < 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Fit non-parametric TriMAP (optionally using PCA initialization from X)
+model = fit(Trimap, knns, dists; out_dim=2, Y_init=pca_init(X, 2))
+```
 """
 function fit(
     ::Type{Trimap},
-    index_or_data;
+    knns::AbstractMatrix{UInt32},
+    dists::AbstractMatrix{Float32};
     out_dim::Integer=2,
     maxoutdim::Integer=out_dim,
+    Y_init::Union{Nothing, AbstractMatrix{<:Real}}=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -75,8 +136,7 @@ function fit(
     n_epochs::Integer=max_iters,
     opt=nothing,
     learning_rate::Real=0.1,
-    dist=Dist.L2(),
-    searchctx=nothing,
+    rng::Random.AbstractRNG=Random.default_rng(),
     verbose::Bool=false
 )
     final_out_dim = maxoutdim != 2 ? maxoutdim : out_dim
@@ -87,41 +147,30 @@ function fit(
         Optimisers.AdamW(Float32(learning_rate))
     end
 
+    size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
+    n = size(knns, 2)
+
     i, j, k, w = generate_triplets(
-        index_or_data;
+        knns,
+        dists;
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,
         weight_adj=weight_adj,
-        dist=dist,
-        searchctx=searchctx
+        rng=rng
     )
 
-    n = if index_or_data isa AbstractMatrix
-        size(index_or_data, 2)
-    elseif index_or_data isa MatrixDatabase
-        size(index_or_data.matrix, 2)
-    else
-        length(index_or_data)
-    end
-
     # Initial embedding
-    local Y_init
-    if index_or_data isa AbstractMatrix
-        X = Float32.(index_or_data)
-        Y_init = pca_init(X, final_out_dim)
-    elseif index_or_data isa MatrixDatabase
-        X = Float32.(index_or_data.matrix)
-        Y_init = pca_init(X, final_out_dim)
-    elseif index_or_data isa AbstractSearchIndex && database(index_or_data) isa MatrixDatabase
-        X = Float32.(database(index_or_data).matrix)
-        Y_init = pca_init(X, final_out_dim)
+    local Y_start::Matrix{Float32}
+    if Y_init !== nothing
+        size(Y_init) == (final_out_dim, n) || throw(DimensionMismatch("Y_init must have size ($(final_out_dim), $(n)); got $(size(Y_init))"))
+        Y_start = Float32.(Y_init)
     else
-        Y_init = randn(Float32, final_out_dim, n) .* 0.01f0
+        Y_start = randn(rng, Float32, final_out_dim, n) .* 0.01f0
     end
 
     Y = optimize_embedding_triplets(
-        Y_init, i, j, k, w;
+        Y_start, i, j, k, w;
         max_iters=final_iters, opt=optimizer, verbose=verbose
     )
 
@@ -129,16 +178,16 @@ function fit(
 end
 
 # Module-level convenience dispatch: fit(Trimap, ...)
-function fit(m::Module, index_or_data; kwargs...)
+function fit(m::Module, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32}; kwargs...)
     if nameof(m) === :Trimap
-        fit(Trimap, index_or_data; kwargs...)
+        fit(Trimap, knns, dists; kwargs...)
     else
-        throw(MethodError(fit, (m, index_or_data)))
+        throw(MethodError(fit, (m, knns, dists)))
     end
 end
 
 """
-    fit(::Type{ParametricTrimap}, X::AbstractMatrix;
+    fit(::Type{ParametricTrimap}, X::AbstractMatrix, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
         model=nothing,
         out_dim=2,
         maxoutdim=out_dim,
@@ -151,16 +200,82 @@ end
         n_epochs=max_iters,
         opt=nothing,
         learning_rate=0.001,
-        dist=Dist.L2(),
-        searchctx=nothing,
         rng=Random.default_rng(),
         verbose=false) -> ParametricTrimap
 
-Fits a Parametric TriMAP model using a neural network (Lux).
+Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-dimensional features `X` and triplet constraints generated from nearest neighbor IDs (`knns::AbstractMatrix{UInt32}`) and distances (`dists::AbstractMatrix{Float32}`).
+
+# Arguments
+- `X`: `(dim × n)` input data matrix.
+- `knns`: `(k × n)` matrix of nearest neighbor IDs of type `UInt32`.
+- `dists`: `(k × n)` matrix of nearest neighbor distances of type `Float32`.
+
+# Keyword Arguments
+- `model`: Custom `Lux` layer/network mapping `dim -> out_dim`. If `nothing`, a multilayer perceptron with `hidden_dims` and ReLU activations is constructed.
+- `out_dim`: Target embedding dimension (default: `2`).
+- `maxoutdim`: Alias for `out_dim`.
+- `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
+- `n_inliers`: Number of inlier neighbors. Default: `15`.
+- `n_outliers`: Number of outlier neighbors. Default: `5`.
+- `n_random`: Number of random negative samples. Default: `5`.
+- `weight_adj`: Weight adjustment parameter. Default: `0.1`.
+- `max_iters` / `n_epochs`: Optimization epochs. Default: `200`.
+- `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
+- `learning_rate`: Learning rate if `opt` is not specified. Default: `0.001`.
+- `rng`: Random number generator. Default: `Random.default_rng()`.
+- `verbose`: Whether to log iteration loss. Default: `false`.
+
+# Examples
+
+## Exact search with `ExhaustiveSearch`
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Fit Parametric TriMAP
+pmodel = fit(ParametricTrimap, X, knns, dists; out_dim=2, hidden_dims=(64, 32))
+
+# Predict embeddings for unseen points
+X_new = randn(Float32, 10, 50)
+Y_new = predict(pmodel, X_new)
+```
+
+## Approximate search with `SearchGraph` (recall < 1)
+```julia
+using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall < 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Fit Parametric TriMAP
+pmodel = fit(ParametricTrimap, X, knns, dists; out_dim=2)
+```
 """
 function fit(
     ::Type{ParametricTrimap},
-    X::AbstractMatrix;
+    X::AbstractMatrix,
+    knns::AbstractMatrix{UInt32},
+    dists::AbstractMatrix{Float32};
     model::Union{Nothing, LuxCore.AbstractLuxLayer}=nothing,
     out_dim::Integer=2,
     maxoutdim::Integer=out_dim,
@@ -173,8 +288,6 @@ function fit(
     n_epochs::Integer=max_iters,
     opt=nothing,
     learning_rate::Real=0.001,
-    dist=Dist.L2(),
-    searchctx=nothing,
     rng::Random.AbstractRNG=Random.default_rng(),
     verbose::Bool=false
 )
@@ -187,7 +300,10 @@ function fit(
     end
 
     X32 = Float32.(X)
-    in_dim = size(X32, 1)
+    in_dim, n = size(X32)
+
+    size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
+    size(knns, 2) == n || throw(DimensionMismatch("Number of columns in knns ($(size(knns, 2))) must match number of columns in X ($n)"))
 
     # Build default MLP if none provided
     net = if model === nothing
@@ -204,13 +320,13 @@ function fit(
     end
 
     i, j, k, w = generate_triplets(
-        X32;
+        knns,
+        dists;
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,
         weight_adj=weight_adj,
-        dist=dist,
-        searchctx=searchctx
+        rng=rng
     )
 
     ps, st = train_parametric_trimap(
@@ -219,6 +335,15 @@ function fit(
     )
 
     ParametricTrimap(net, ps, st)
+end
+
+# Module-level convenience dispatch: fit(Trimap, X, knns, dists; ...)
+function fit(m::Module, X::AbstractMatrix, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32}; kwargs...)
+    if nameof(m) === :Trimap
+        fit(ParametricTrimap, X, knns, dists; kwargs...)
+    else
+        throw(MethodError(fit, (m, X, knns, dists)))
+    end
 end
 
 """
