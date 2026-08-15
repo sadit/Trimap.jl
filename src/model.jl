@@ -43,9 +43,9 @@ function pca_init(X::AbstractMatrix{Float32}, out_dim::Integer; scale::Real=0.01
 end
 
 """
-    fit(::Type{Trimap}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
-        out_dim=2,
-        maxoutdim=out_dim,
+    fit(::Type{Trimap}, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+        maxoutdim=2,
+        n_epochs=400,
         Y_init=nothing,
         sample=nothing,
         sample_probs=nothing,
@@ -53,30 +53,28 @@ end
         n_outliers=5,
         n_random=5,
         weight_adj=0.1,
-        max_iters=400,
-        n_epochs=max_iters,
         opt=nothing,
         learning_rate=0.1,
         rng=Random.default_rng(),
         verbose=false) -> Trimap
 
-Fits non-parametric TriMAP dimensionality reduction given precomputed nearest neighbor IDs (`knns::AbstractMatrix{UInt32}`) and distances (`dists::AbstractMatrix{Float32}`).
+Fits non-parametric TriMAP dimensionality reduction given high-dimensional features `X`, precomputed nearest neighbor IDs (`knns::AbstractMatrix{UInt32}`), and distances (`dists::AbstractMatrix{Float32}`).
 
 # Arguments
+- `X`: `(dim × n)` input data matrix of type `Float32`.
 - `knns`: `(k × n)` matrix of nearest neighbor IDs of type `UInt32` (e.g. from `allknn` or `searchbatch`).
 - `dists`: `(k × n)` matrix of nearest neighbor distances of type `Float32`.
 
 # Keyword Arguments
-- `out_dim`: Target embedding dimension (default: `2`).
-- `maxoutdim`: Alias for `out_dim`.
-- `Y_init`: Optional initial embedding matrix of size `(out_dim, n)` (e.g. `Matrix{Float32}`). If `nothing`, initialized with Gaussian noise `randn * 0.01`. You may pass `pca_init(X, out_dim)`.
-- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are drawn from `1:n`.
+- `maxoutdim`: Target embedding dimension (default: `2`).
+- `n_epochs`: Optimization iterations / epochs (default: `400`).
+- `Y_init`: Initial embedding matrix of size `(maxoutdim, n)`. If `nothing` (default), initialized via `pca_init(X, maxoutdim)`. Pass `:random` for Gaussian noise.
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
 - `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
 - `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
 - `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
-- `max_iters` / `n_epochs`: Optimization iterations. Default: `400`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
 - `learning_rate`: Learning rate if `opt` is not specified. Default: `0.1`.
 - `rng`: Random number generator. Default: `Random.default_rng()`.
@@ -109,8 +107,8 @@ for c in res_fft.nn
 end
 sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
 
-# Fit non-parametric TriMAP with weighted fft negative sampling
-model = fit(Trimap, knns, dists; sample=sample_centers, sample_probs=sample_probs, out_dim=2)
+# Fit non-parametric TriMAP with weighted fft negative sampling (PCA initialization is automatic)
+model = fit(Trimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, maxoutdim=2)
 # model.embedding is of size (2, 500)
 ```
 
@@ -132,32 +130,29 @@ optimize_index!(G, ctx, MinRecall(0.85))
 k = 25
 knns, dists = allknn(G, ctx, k)
 
-# Fit non-parametric TriMAP (optionally using PCA initialization from X)
-model = fit(Trimap, knns, dists; out_dim=2, Y_init=pca_init(X, 2))
+# Fit non-parametric TriMAP
+model = fit(Trimap, X, knns, dists; maxoutdim=2)
 ```
 """
 function fit(
     ::Type{Trimap},
+    X::AbstractMatrix{Float32},
     knns::AbstractMatrix{UInt32},
     dists::AbstractMatrix{Float32};
-    out_dim::Integer=2,
-    maxoutdim::Integer=out_dim,
-    Y_init::Union{Nothing, AbstractMatrix{<:Real}}=nothing,
+    maxoutdim::Integer=2,
+    n_epochs::Integer=400,
+    Y_init::Union{Nothing, Symbol, AbstractMatrix{<:Real}}=nothing,
     sample=nothing,
     sample_probs=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
     weight_adj::Real=0.1,
-    max_iters::Integer=400,
-    n_epochs::Integer=max_iters,
     opt=nothing,
     learning_rate::Real=0.1,
     rng::Random.AbstractRNG=Random.default_rng(),
     verbose::Bool=false
 )
-    final_out_dim = maxoutdim != 2 ? maxoutdim : out_dim
-    final_iters = n_epochs != 400 ? n_epochs : max_iters
     optimizer = if opt !== nothing
         opt
     else
@@ -166,6 +161,7 @@ function fit(
 
     size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
     n = size(knns, 2)
+    size(X, 2) == n || throw(DimensionMismatch("Number of columns in X ($(size(X, 2))) must match number of columns in knns ($n)"))
 
     i, j, k, w = generate_triplets(
         knns,
@@ -179,37 +175,39 @@ function fit(
         rng=rng
     )
 
-    # Initial embedding
+    # Initial embedding: default to PCA initialization on X
     local Y_start::Matrix{Float32}
-    if Y_init !== nothing
-        size(Y_init) == (final_out_dim, n) || throw(DimensionMismatch("Y_init must have size ($(final_out_dim), $(n)); got $(size(Y_init))"))
+    if Y_init isa AbstractMatrix
+        size(Y_init) == (maxoutdim, n) || throw(DimensionMismatch("Y_init must have size ($(maxoutdim), $(n)); got $(size(Y_init))"))
         Y_start = Float32.(Y_init)
+    elseif Y_init === :random
+        Y_start = randn(rng, Float32, maxoutdim, n) .* 0.01f0
     else
-        Y_start = randn(rng, Float32, final_out_dim, n) .* 0.01f0
+        Y_start = pca_init(X, maxoutdim)
     end
 
     Y = optimize_embedding_triplets(
         Y_start, i, j, k, w;
-        max_iters=final_iters, opt=optimizer, verbose=verbose
+        max_iters=n_epochs, opt=optimizer, verbose=verbose
     )
 
     Trimap(Y)
 end
 
-# Module-level convenience dispatch: fit(Trimap, ...)
-function fit(m::Module, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32}; kwargs...)
+# Module-level convenience dispatch: fit(Trimap, X, knns, dists; ...)
+function fit(m::Module, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32}; kwargs...)
     if nameof(m) === :Trimap
-        fit(Trimap, knns, dists; kwargs...)
+        fit(Trimap, X, knns, dists; kwargs...)
     else
-        throw(MethodError(fit, (m, knns, dists)))
+        throw(MethodError(fit, (m, X, knns, dists)))
     end
 end
 
 """
-    fit(::Type{ParametricTrimap}, X::AbstractMatrix, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+    fit(::Type{ParametricTrimap}, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
         model=nothing,
-        out_dim=2,
-        maxoutdim=out_dim,
+        maxoutdim=2,
+        n_epochs=200,
         hidden_dims=(128, 64),
         sample=nothing,
         sample_probs=nothing,
@@ -217,8 +215,6 @@ end
         n_outliers=5,
         n_random=5,
         weight_adj=0.1,
-        max_iters=200,
-        n_epochs=max_iters,
         opt=nothing,
         learning_rate=0.001,
         rng=Random.default_rng(),
@@ -227,22 +223,21 @@ end
 Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-dimensional features `X` and triplet constraints generated from nearest neighbor IDs (`knns::AbstractMatrix{UInt32}`) and distances (`dists::AbstractMatrix{Float32}`).
 
 # Arguments
-- `X`: `(dim × n)` input data matrix.
+- `X`: `(dim × n)` input data matrix of type `Float32`.
 - `knns`: `(k × n)` matrix of nearest neighbor IDs of type `UInt32`.
 - `dists`: `(k × n)` matrix of nearest neighbor distances of type `Float32`.
 
 # Keyword Arguments
-- `model`: Custom `Lux` layer/network mapping `dim -> out_dim`. If `nothing`, a multilayer perceptron with `hidden_dims` and ReLU activations is constructed.
-- `out_dim`: Target embedding dimension (default: `2`).
-- `maxoutdim`: Alias for `out_dim`.
+- `model`: Custom `Lux` layer/network mapping `dim -> maxoutdim`. If `nothing`, a multilayer perceptron with `hidden_dims` and ReLU activations is constructed.
+- `maxoutdim`: Target embedding dimension (default: `2`).
+- `n_epochs`: Optimization epochs (default: `200`).
 - `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
-- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
 - `n_inliers`: Number of inlier neighbors. Default: `15`.
 - `n_outliers`: Number of outlier neighbors. Default: `5`.
 - `n_random`: Number of random negative samples. Default: `5`.
 - `weight_adj`: Weight adjustment parameter. Default: `0.1`.
-- `max_iters` / `n_epochs`: Optimization epochs. Default: `200`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
 - `learning_rate`: Learning rate if `opt` is not specified. Default: `0.001`.
 - `rng`: Random number generator. Default: `Random.default_rng()`.
@@ -276,7 +271,7 @@ end
 sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
 
 # Fit Parametric TriMAP with weighted fft negative sampling
-pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, out_dim=2, hidden_dims=(64, 32))
+pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, maxoutdim=2, hidden_dims=(64, 32))
 
 # Predict embeddings for unseen points
 X_new = randn(Float32, 10, 50)
@@ -302,7 +297,7 @@ k = 25
 knns, dists = allknn(G, ctx, k)
 
 # Fit Parametric TriMAP
-pmodel = fit(ParametricTrimap, X, knns, dists; out_dim=2)
+pmodel = fit(ParametricTrimap, X, knns, dists; maxoutdim=2)
 ```
 """
 function fit(
@@ -311,8 +306,8 @@ function fit(
     knns::AbstractMatrix{UInt32},
     dists::AbstractMatrix{Float32};
     model::Union{Nothing, LuxCore.AbstractLuxLayer}=nothing,
-    out_dim::Integer=2,
-    maxoutdim::Integer=out_dim,
+    maxoutdim::Integer=2,
+    n_epochs::Integer=200,
     hidden_dims::Tuple=(128, 64),
     sample=nothing,
     sample_probs=nothing,
@@ -320,15 +315,11 @@ function fit(
     n_outliers::Integer=5,
     n_random::Integer=5,
     weight_adj::Real=0.1,
-    max_iters::Integer=200,
-    n_epochs::Integer=max_iters,
     opt=nothing,
     learning_rate::Real=0.001,
     rng::Random.AbstractRNG=Random.default_rng(),
     verbose::Bool=false
 )
-    final_out_dim = maxoutdim != 2 ? maxoutdim : out_dim
-    final_iters = n_epochs != 200 ? n_epochs : max_iters
     optimizer = if opt !== nothing
         opt
     else
@@ -348,7 +339,7 @@ function fit(
             push!(layers, Lux.Dense(prev_dim => h, Lux.relu))
             prev_dim = h
         end
-        push!(layers, Lux.Dense(prev_dim => final_out_dim))
+        push!(layers, Lux.Dense(prev_dim => maxoutdim))
         Lux.Chain(layers...)
     else
         model
@@ -368,7 +359,7 @@ function fit(
 
     ps, st = train_parametric_trimap(
         net, X, i, j, k, w;
-        max_iters=final_iters, opt=optimizer, rng=rng, verbose=verbose
+        max_iters=n_epochs, opt=optimizer, rng=rng, verbose=verbose
     )
 
     ParametricTrimap(net, ps, st)

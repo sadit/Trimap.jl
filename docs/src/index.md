@@ -49,8 +49,8 @@ ctx = GenericContext()
 k = 25 # inliers + outliers + margin
 knns, dists = allknn(index, ctx, k)
 
-# 3. Fit non-parametric TriMAP
-model = fit(Trimap, knns, dists; out_dim=2, Y_init=pca_init(X, 2))
+# 3. Fit non-parametric TriMAP (PCA initialization is default)
+model = fit(Trimap, X, knns, dists; maxoutdim=2)
 
 # model.embedding is a (2, 1000) Float32 matrix
 ```

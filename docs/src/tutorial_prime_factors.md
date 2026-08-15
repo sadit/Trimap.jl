@@ -33,6 +33,24 @@ println("First 5 numbers and their prime factors:")
 for i in 1:5
     println("  $(numbers[i]) => $(prime_sets[i])")
 end
+
+# Build a binary prime-indicator feature matrix (dim = number of primes <= N_max)
+all_primes = primes(N_max)
+prime_to_idx = Dict(p => i for (i, p) in enumerate(all_primes))
+n_features = length(all_primes)
+
+function featurize(factor_set)
+    v = zeros(Float32, n_features)
+    for p in factor_set
+        if haskey(prime_to_idx, p)
+            v[prime_to_idx[p]] = 1.0f0
+        end
+    end
+    v
+end
+
+X_primes = hcat([featurize(fs) for fs in prime_sets]...) # (n_features, n_items)
+println("Prime indicator matrix: ", size(X_primes))
 ```
 
 ---
@@ -81,15 +99,16 @@ println("Total landmarks: ", length(sample_centers))
 ```@example primes
 model_primes = fit(
     Trimap,
+    X_primes,
     knns_primes,
     dists_primes;
     sample=sample_centers,
     sample_probs=sample_probs,
-    out_dim=2,
+    maxoutdim=2,
     n_inliers=15,
     n_outliers=5,
     n_random=5,
-    max_iters=400,
+    n_epochs=400,
     learning_rate=0.1
 )
 
@@ -161,37 +180,20 @@ Plot(traces_primes, layout_primes)
 
 What if we want to project **new unseen integers** (e.g. $n \in \{2001, \dots, 2100\}$) without re-optimizing the entire dataset?
 
-We use `ParametricTrimap` backed by a `Lux` neural network trained on sparse multi-hot binary vectors representing the presence of primes up to $\sqrt{N_{\max}}$:
+We use `ParametricTrimap` backed by a `Lux` neural network trained on the multi-hot feature vectors `X_primes`:
 
 ```@example primes
-# Build a binary prime-indicator feature matrix for training
-all_primes = primes(N_max)
-prime_to_idx = Dict(p => i for (i, p) in enumerate(all_primes))
-n_features = length(all_primes)
-
-function featurize(factor_set)
-    v = zeros(Float32, n_features)
-    for p in factor_set
-        if haskey(prime_to_idx, p)
-            v[prime_to_idx[p]] = 1.0f0
-        end
-    end
-    v
-end
-
-X_train = hcat([featurize(fs) for fs in prime_sets]...) # (n_features, n_items)
-
 # Fit Parametric TriMAP
 pmodel = fit(
     ParametricTrimap,
-    X_train,
+    X_primes,
     knns_primes,
     dists_primes;
     sample=sample_centers,
     sample_probs=sample_probs,
-    out_dim=2,
+    maxoutdim=2,
     hidden_dims=(128, 64),
-    max_iters=250,
+    n_epochs=250,
     learning_rate=0.002
 )
 

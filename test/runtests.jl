@@ -77,28 +77,32 @@ using LinearAlgebra
     end
 
     @testset "Non-parametric TriMAP fit" begin
-        # Using exact search k-NN
-        model_exact = fit(Trimap, knns_exact, dists_exact; out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20, learning_rate=0.1)
+        # Using exact search k-NN with default PCA initialization
+        model_exact = fit(Trimap, X, knns_exact, dists_exact; maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20, learning_rate=0.1)
         @test model_exact isa TrimapModel
         @test size(model_exact.embedding) == (2, n)
         @test all(isfinite, model_exact.embedding)
 
-        # Using approximate search k-NN with recall < 1 and PCA init
-        Y_init = pca_init(X, 2)
-        model_approx = fit(Trimap, knns_approx, dists_approx; maxoutdim=2, Y_init=Y_init, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
+        # Using approximate search k-NN with recall < 1 and random init
+        model_approx = fit(Trimap, X, knns_approx, dists_approx; maxoutdim=2, Y_init=:random, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
         @test model_approx isa TrimapModel
         @test size(model_approx.embedding) == (2, n)
         @test all(isfinite, model_approx.embedding)
 
+        # Using explicit matrix Y_init
+        Y_init = pca_init(X, 2)
+        model_custom_init = fit(Trimap, X, knns_exact, dists_exact; maxoutdim=2, Y_init=Y_init, n_epochs=10)
+        @test size(model_custom_init.embedding) == (2, n)
+
         # Using fft negative sampling
         fft_sample = fft(Dist.L2(), db, 20)
-        model_fft = fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        model_fft = fit(Trimap, X, knns_exact, dists_exact; sample=fft_sample.centers, maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
         @test model_fft isa TrimapModel
         @test size(model_fft.embedding) == (2, n)
         @test all(isfinite, model_fft.embedding)
 
         # Using NamedTuple directly from fft
-        model_fft_nt = fit(Trimap, knns_exact, dists_exact; sample=fft_sample, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        model_fft_nt = fit(Trimap, X, knns_exact, dists_exact; sample=fft_sample, maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
         @test model_fft_nt isa TrimapModel
         @test size(model_fft_nt.embedding) == (2, n)
 
@@ -108,13 +112,13 @@ using LinearAlgebra
             counts[c] = get(counts, c, 0f0) + 1f0
         end
         sample_probs = Float32[get(counts, c, 0f0) / length(fft_sample.nn) for c in fft_sample.centers]
-        model_fft_weighted = fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        model_fft_weighted = fit(Trimap, X, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
         @test model_fft_weighted isa TrimapModel
         @test size(model_fft_weighted.embedding) == (2, n)
         @test all(isfinite, model_fft_weighted.embedding)
 
         # Dimension mismatch for sample_probs
-        @test_throws DimensionMismatch fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs[1:5])
+        @test_throws DimensionMismatch fit(Trimap, X, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs[1:5])
     end
 
     @testset "Parametric TriMAP fit and predict" begin
@@ -126,7 +130,7 @@ using LinearAlgebra
         end
         sample_probs = Float32[get(counts, c, 0f0) / length(fft_sample.nn) for c in fft_sample.centers]
 
-        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, out_dim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, maxoutdim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
         @test pm isa ParametricTrimap
         
         # In-sample prediction
@@ -142,7 +146,7 @@ using LinearAlgebra
 
         # Custom Lux Layer with approximate k-NN (recall < 1)
         custom_net = Lux.Chain(Lux.Dense(dim => 16, Lux.tanh), Lux.Dense(16 => 3))
-        pm_custom = fit(ParametricTrimap, X, knns_approx, dists_approx; model=custom_net, max_iters=15)
+        pm_custom = fit(ParametricTrimap, X, knns_approx, dists_approx; model=custom_net, maxoutdim=3, n_epochs=15)
         @test pm_custom isa ParametricTrimap
         Y_custom = predict(pm_custom, X_test)
         @test size(Y_custom) == (3, 15)

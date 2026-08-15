@@ -19,8 +19,8 @@ Random.seed!(42)
 
 function make_moons(n_samples=600, noise=0.08f0)
     n_half = div(n_samples, 2)
-    theta1 = range(0, π, length=n_half)
-    theta2 = range(0, π, length=n_half)
+    theta1 = range(0f0, Float32(π), length=n_half)
+    theta2 = range(0f0, Float32(π), length=n_half)
     
     x1 = cos.(theta1) .+ noise .* randn(Float32, n_half)
     y1 = sin.(theta1) .+ noise .* randn(Float32, n_half)
@@ -28,7 +28,7 @@ function make_moons(n_samples=600, noise=0.08f0)
     x2 = 1.0f0 .- cos.(theta2) .+ noise .* randn(Float32, n_half)
     y2 = 1.0f0 .- sin.(theta2) .- 0.5f0 .+ noise .* randn(Float32, n_half)
     
-    X = hcat(vcat(x1', y1'), vcat(x2', y2'))
+    X = Matrix{Float32}(hcat(vcat(x1', y1'), vcat(x2', y2')))
     labels = vcat(fill("Moon A", n_half), fill("Moon B", n_half))
     X, labels
 end
@@ -60,13 +60,14 @@ knns_moons, dists_moons = allknn(G, ctx_g, k)
 ```@example moons
 model_moons = fit(
     Trimap,
+    X_moons,
     knns_moons,
     dists_moons;
-    out_dim=2,
+    maxoutdim=2,
     n_inliers=15,
     n_outliers=5,
     n_random=5,
-    max_iters=300
+    n_epochs=300
 )
 
 Y_moons = model_moons.embedding
@@ -112,8 +113,8 @@ function make_spirals(n_points_per_arm=300, noise=0.04f0)
     labels = []
     
     for arm in 1:3
-        theta = range(0.5, 4.0 * π, length=n_points_per_arm) .+ (arm - 1) * (2π / 3)
-        r = range(0.2, 2.0, length=n_points_per_arm)
+        theta = range(0.5f0, Float32(4.0 * π), length=n_points_per_arm) .+ Float32((arm - 1) * (2π / 3))
+        r = range(0.2f0, 2.0f0, length=n_points_per_arm)
         
         x = r .* cos.(theta) .+ noise .* randn(Float32, n_points_per_arm)
         y = r .* sin.(theta) .+ noise .* randn(Float32, n_points_per_arm)
@@ -124,7 +125,7 @@ function make_spirals(n_points_per_arm=300, noise=0.04f0)
         push!(labels, fill("Spiral $(arm)", n_points_per_arm))
     end
     
-    X = hcat(arms...)
+    X = Matrix{Float32}(hcat(arms...))
     labels_all = vcat(labels...)
     X, labels_all
 end
@@ -162,16 +163,17 @@ println("Sum of probabilities: ", sum(sample_probs))
 ```@example spirals
 model_spirals = fit(
     Trimap,
+    X_spirals,
     knns_spirals,
     dists_spirals;
     sample=sample_centers,
     sample_probs=sample_probs,
-    out_dim=2,
+    maxoutdim=2,
     n_inliers=15,
     n_outliers=5,
     n_random=6,
     weight_adj=0.15,
-    max_iters=400,
+    n_epochs=400,
     learning_rate=0.1
 )
 

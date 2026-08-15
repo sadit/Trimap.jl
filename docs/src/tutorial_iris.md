@@ -52,20 +52,19 @@ println("dists matrix: ", size(dists), " of ", eltype(dists))
 
 ## 3. Fitting Non-Parametric TriMAP
 
-We fit TriMAP using `pca_init(X, 2)` to provide a fast, deterministic global orientation:
+We fit TriMAP using `X`, `knns`, and `dists` (PCA initialization is performed automatically from `X`):
 
 ```@example iris
-Y_init = pca_init(X, 2)
 model = fit(
     Trimap,
+    X,
     knns,
     dists;
-    out_dim=2,
-    Y_init=Y_init,
+    maxoutdim=2,
     n_inliers=12,
     n_outliers=4,
     n_random=4,
-    max_iters=300,
+    n_epochs=300,
     learning_rate=0.1
 )
 
