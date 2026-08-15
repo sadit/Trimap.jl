@@ -3,6 +3,7 @@
 """
     generate_triplets(knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
                       sample=nothing,
+                      sample_probs=nothing,
                       n_inliers=15,
                       n_outliers=5,
                       n_random=5,
@@ -16,7 +17,8 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 - `dists`: `(k × n)` matrix of corresponding distances of type `Float32`.
 
 # Keyword Arguments
-- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are drawn from `1:n`.
+- `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
 - `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
 - `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
@@ -28,7 +30,7 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 
 # Examples
 
-## Exact search with `ExhaustiveSearch` and `fft` negative sampling
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling with relative cluster probabilities
 ```julia
 using SimilaritySearch, Trimap
 
@@ -42,13 +44,22 @@ k = 25
 ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
-# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
-sample_centers = fft(Dist.L2(), db, 50).centers
+# Extract diverse landmarks using Farthest First Traversal (fft)
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
 
-# Generate triplets using the fft sample
+# Count how many points choose each center in res_fft.nn to compute relative probabilities
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Generate triplets using the weighted fft sample
 triplets_i, triplets_j, triplets_k, weights = generate_triplets(
     knns, dists;
     sample=sample_centers,
+    sample_probs=sample_probs,
     n_inliers=10,
     n_outliers=5,
     n_random=5
@@ -81,6 +92,7 @@ function generate_triplets(
     knns::AbstractMatrix{UInt32},
     dists::AbstractMatrix{Float32};
     sample=nothing,
+    sample_probs=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -92,7 +104,7 @@ function generate_triplets(
 
     # Determine sample source for random negative sampling
     sample_pool = if sample === nothing
-        nothing
+        1:n
     elseif sample isa NamedTuple && haskey(sample, :centers)
         sample.centers
     elseif sample isa AbstractVector{<:Integer}
@@ -101,6 +113,15 @@ function generate_triplets(
         1:size(sample, 2)
     else
         sample
+    end
+
+    cum_probs = if sample_probs !== nothing
+        length(sample_probs) == length(sample_pool) || throw(DimensionMismatch("sample_probs must have length $(length(sample_pool)); got $(length(sample_probs))"))
+        cp = cumsum(Float64.(sample_probs))
+        cp[end] > 0 || throw(ArgumentError("Sum of sample_probs must be positive"))
+        cp
+    else
+        nothing
     end
 
     triplets_i = Int32[]
@@ -161,7 +182,14 @@ function generate_triplets(
             d_ij = distances[idx_j]
             w_ij = exp(-Float32(d_ij) / (scale + 1f-5))
             for _ in 1:n_random
-                k = sample_pool === nothing ? rand(rng, 1:n) : rand(rng, sample_pool)
+                k = if cum_probs === nothing
+                    rand(rng, sample_pool)
+                else
+                    r = rand(rng, Float64) * cum_probs[end]
+                    idx = searchsortedfirst(cum_probs, r)
+                    idx = clamp(idx, 1, length(sample_pool))
+                    sample_pool[idx]
+                end
                 if k != i && k != j && k >= 1 && k <= n
                     push!(triplets_i, Int32(i))
                     push!(triplets_j, Int32(j))

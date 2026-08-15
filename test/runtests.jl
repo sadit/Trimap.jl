@@ -101,12 +101,32 @@ using LinearAlgebra
         model_fft_nt = fit(Trimap, knns_exact, dists_exact; sample=fft_sample, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
         @test model_fft_nt isa TrimapModel
         @test size(model_fft_nt.embedding) == (2, n)
+
+        # Using fft negative sampling with cluster probabilities from .nn
+        counts = Dict{UInt32, Float32}()
+        for c in fft_sample.nn
+            counts[c] = get(counts, c, 0f0) + 1f0
+        end
+        sample_probs = Float32[get(counts, c, 0f0) / length(fft_sample.nn) for c in fft_sample.centers]
+        model_fft_weighted = fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        @test model_fft_weighted isa TrimapModel
+        @test size(model_fft_weighted.embedding) == (2, n)
+        @test all(isfinite, model_fft_weighted.embedding)
+
+        # Dimension mismatch for sample_probs
+        @test_throws DimensionMismatch fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs[1:5])
     end
 
     @testset "Parametric TriMAP fit and predict" begin
-        # Default MLP with exact k-NN and fft negative sampling
+        # Default MLP with exact k-NN and fft negative sampling with sample_probs
         fft_sample = fft(Dist.L2(), db, 20)
-        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; sample=fft_sample.centers, out_dim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        counts = Dict{UInt32, Float32}()
+        for c in fft_sample.nn
+            counts[c] = get(counts, c, 0f0) + 1f0
+        end
+        sample_probs = Float32[get(counts, c, 0f0) / length(fft_sample.nn) for c in fft_sample.centers]
+
+        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; sample=fft_sample.centers, sample_probs=sample_probs, out_dim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
         @test pm isa ParametricTrimap
         
         # In-sample prediction

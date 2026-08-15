@@ -48,6 +48,7 @@ end
         maxoutdim=out_dim,
         Y_init=nothing,
         sample=nothing,
+        sample_probs=nothing,
         n_inliers=15,
         n_outliers=5,
         n_random=5,
@@ -69,7 +70,8 @@ Fits non-parametric TriMAP dimensionality reduction given precomputed nearest ne
 - `out_dim`: Target embedding dimension (default: `2`).
 - `maxoutdim`: Alias for `out_dim`.
 - `Y_init`: Optional initial embedding matrix of size `(out_dim, n)` (e.g. `Matrix{Float32}`). If `nothing`, initialized with Gaussian noise `randn * 0.01`. You may pass `pca_init(X, out_dim)`.
-- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are drawn from `1:n`.
+- `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
 - `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
 - `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
@@ -82,7 +84,7 @@ Fits non-parametric TriMAP dimensionality reduction given precomputed nearest ne
 
 # Examples
 
-## Exact search with `ExhaustiveSearch` and `fft` negative sampling
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling with cluster probabilities
 ```julia
 using SimilaritySearch, Trimap
 
@@ -97,10 +99,18 @@ ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
 # Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
-sample_centers = fft(Dist.L2(), db, 50).centers
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
 
-# Fit non-parametric TriMAP with fft negative sampling
-model = fit(Trimap, knns, dists; sample=sample_centers, out_dim=2)
+# Compute relative frequencies/probabilities from res_fft.nn
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Fit non-parametric TriMAP with weighted fft negative sampling
+model = fit(Trimap, knns, dists; sample=sample_centers, sample_probs=sample_probs, out_dim=2)
 # model.embedding is of size (2, 500)
 ```
 
@@ -134,6 +144,7 @@ function fit(
     maxoutdim::Integer=out_dim,
     Y_init::Union{Nothing, AbstractMatrix{<:Real}}=nothing,
     sample=nothing,
+    sample_probs=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -160,6 +171,7 @@ function fit(
         knns,
         dists;
         sample=sample,
+        sample_probs=sample_probs,
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,
@@ -200,6 +212,7 @@ end
         maxoutdim=out_dim,
         hidden_dims=(128, 64),
         sample=nothing,
+        sample_probs=nothing,
         n_inliers=15,
         n_outliers=5,
         n_random=5,
@@ -224,6 +237,7 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 - `maxoutdim`: Alias for `out_dim`.
 - `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
+- `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
 - `n_inliers`: Number of inlier neighbors. Default: `15`.
 - `n_outliers`: Number of outlier neighbors. Default: `5`.
 - `n_random`: Number of random negative samples. Default: `5`.
@@ -236,7 +250,7 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 
 # Examples
 
-## Exact search with `ExhaustiveSearch` and `fft` negative sampling
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling with cluster probabilities
 ```julia
 using SimilaritySearch, Trimap
 
@@ -251,10 +265,18 @@ ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
 # Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
-sample_centers = fft(Dist.L2(), db, 50).centers
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
 
-# Fit Parametric TriMAP with fft negative sampling
-pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, out_dim=2, hidden_dims=(64, 32))
+# Compute relative frequencies/probabilities from res_fft.nn
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Fit Parametric TriMAP with weighted fft negative sampling
+pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, out_dim=2, hidden_dims=(64, 32))
 
 # Predict embeddings for unseen points
 X_new = randn(Float32, 10, 50)
@@ -293,6 +315,7 @@ function fit(
     maxoutdim::Integer=out_dim,
     hidden_dims::Tuple=(128, 64),
     sample=nothing,
+    sample_probs=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -336,6 +359,7 @@ function fit(
         knns,
         dists;
         sample=sample,
+        sample_probs=sample_probs,
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,
