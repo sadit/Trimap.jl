@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · Trimap.jl</title><meta name="title" content="Home · Trimap.jl"/><meta property="og:title" content="Home · Trimap.jl"/><meta property="twitter:title" content="Home · Trimap.jl"/><meta name="description" content="Documentation for Trimap.jl."/><meta property="og:description" content="Documentation for Trimap.jl."/><meta property="twitter:description" content="Documentation for Trimap.jl."/><meta property="og:url" content="https://sadit.github.io/Trimap.jl/stable/"/><meta property="twitter:url" content="https://sadit.github.io/Trimap.jl/stable/"/><link rel="canonical" href="https://sadit.github.io/Trimap.jl/stable/"/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>Trimap.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Home</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Quick-Start"><span>Quick Start</span></a></li><li><a class="tocitem" href="#API-Reference"><span>API Reference</span></a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="tutorial_iris/">Iris Dataset</a></li><li><a class="tocitem" href="tutorial_moons_spirals/">Two Moons and Spirals</a></li><li><a class="tocitem" href="tutorial_prime_factors/">Prime Factorization</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Home</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/sadit/Trimap.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/sadit/Trimap.jl/blob/master/docs/src/index.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Trimap.jl"><a class="docs-heading-anchor" href="#Trimap.jl">Trimap.jl</a><a id="Trimap.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Trimap.jl" title="Permalink"></a></h1><p><em>Fast and flexible TriMAP dimensionality reduction in Julia, powered by SimilaritySearch.jl and Lux.jl.</em></p><hr/><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p><a href="https://github.com/eamid/trimap">TriMAP</a> (Large-scale Dimensionality Reduction Using Triplets) is a state-of-the-art manifold learning and dimensionality reduction technique. It preserves both <strong>local neighborhood structure</strong> (inliers vs margin outliers) and <strong>global topological structure</strong> (inliers vs random negative samples) through triplet constraints.</p><p><code>Trimap.jl</code> provides:</p><ul><li><strong>Decoupled Metric Search &amp; Optimization</strong>: Receives precomputed <span>$k$</span>-NN matrices (<code>knns::AbstractMatrix{UInt32}</code> and <code>dists::AbstractMatrix{Float32}</code>) from any search index in <a href="https://github.com/sadit/SimilaritySearch.jl">SimilaritySearch.jl</a>, allowing exact search (<code>ExhaustiveSearch</code>) or high-throughput approximate search (<code>SearchGraph</code>).</li><li><strong>Support for Arbitrary Metric Spaces</strong>: Embed non-vector data (graphs, strings, sets, histograms, audio signatures) as easily as Euclidean vectors.</li><li><strong>Representative Negative Sampling</strong>: Landmark selection using Farthest First Traversal (<code>fft</code>) and weighted cluster probabilities (<code>sample_probs</code> computed from <code>.nn</code>).</li><li><strong>Parametric TriMAP</strong>: Deep neural network embedding model powered by <a href="https://github.com/LuxDL/Lux.jl">Lux.jl</a>, enabling <span>$O(1)$</span> out-of-sample projection of unseen queries.</li><li><strong>Pure Julia &amp; GPU/Differentiable</strong>: Powered by <code>Optimisers.jl</code> and <code>Zygote.jl</code>.</li></ul><hr/><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p><code>Trimap.jl</code> can be installed using the Julia package manager:</p><pre><code class="language-julia hljs">using Pkg
+Pkg.add(&quot;Trimap&quot;)</code></pre><p>Or from GitHub:</p><pre><code class="language-julia hljs">Pkg.add(url=&quot;https://github.com/sadit/Trimap.jl.git&quot;)</code></pre><hr/><h2 id="Quick-Start"><a class="docs-heading-anchor" href="#Quick-Start">Quick Start</a><a id="Quick-Start-1"></a><a class="docs-heading-anchor-permalink" href="#Quick-Start" title="Permalink"></a></h2><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# 1. High-dimensional data
+X = randn(Float32, 10, 1000) # 10 dimensions, 1000 points
+db = MatrixDatabase(X)
+
+# 2. Compute k-nearest neighbors
+index = ExhaustiveSearch(Dist.L2(), db)
+ctx = GenericContext()
+k = 25 # inliers + outliers + margin
+knns, dists = allknn(index, ctx, k)
+
+# 3. Fit non-parametric TriMAP (PCA initialization is default)
+model = fit(Trimap, X, knns, dists; maxoutdim=2)
+
+# model.embedding is a (2, 1000) Float32 matrix</code></pre><hr/><h2 id="API-Reference"><a class="docs-heading-anchor" href="#API-Reference">API Reference</a><a id="API-Reference-1"></a><a class="docs-heading-anchor-permalink" href="#API-Reference" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Trimap.ParametricTrimap"><a class="docstring-binding" href="#Trimap.ParametricTrimap"><code>Trimap.ParametricTrimap</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ParametricTrimap</code></pre><p>Parametric TriMAP model backed by a neural network <code>model</code> (Lux). Allows O(1) projection of out-of-sample points via <code>predict(m, X_new)</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L14-L19">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.Trimap"><a class="docstring-binding" href="#Trimap.Trimap"><code>Trimap.Trimap</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Trimap</code></pre><p>Non-parametric TriMAP embedding model. Holds the learned embedding coordinates <code>embedding</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L3-L7">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.fit-Tuple{Type{ParametricTrimap}, AbstractMatrix{Float32}, AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><a class="docstring-binding" href="#Trimap.fit-Tuple{Type{ParametricTrimap}, AbstractMatrix{Float32}, AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><code>Trimap.fit</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">fit(::Type{ParametricTrimap}, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+    model=nothing,
+    maxoutdim=2,
+    n_epochs=200,
+    hidden_dims=(128, 64),
+    sample=nothing,
+    sample_probs=nothing,
+    n_inliers=15,
+    n_outliers=5,
+    n_random=5,
+    weight_adj=0.1,
+    opt=nothing,
+    learning_rate=0.001,
+    rng=Random.default_rng(),
+    verbose=false) -&gt; ParametricTrimap</code></pre><p>Fits a Parametric TriMAP model using a neural network (<code>Lux</code>), training on high-dimensional features <code>X</code> and triplet constraints generated from nearest neighbor IDs (<code>knns::AbstractMatrix{UInt32}</code>) and distances (<code>dists::AbstractMatrix{Float32}</code>).</p><p><strong>Arguments</strong></p><ul><li><code>X</code>: <code>(dim × n)</code> input data matrix of type <code>Float32</code>.</li><li><code>knns</code>: <code>(k × n)</code> matrix of nearest neighbor IDs of type <code>UInt32</code>.</li><li><code>dists</code>: <code>(k × n)</code> matrix of nearest neighbor distances of type <code>Float32</code>.</li></ul><p><strong>Keyword Arguments</strong></p><ul><li><code>model</code>: Custom <code>Lux</code> layer/network mapping <code>dim -&gt; maxoutdim</code>. If <code>nothing</code>, a multilayer perceptron with <code>hidden_dims</code> and ReLU activations is constructed.</li><li><code>maxoutdim</code>: Target embedding dimension (default: <code>2</code>).</li><li><code>n_epochs</code>: Optimization epochs (default: <code>200</code>).</li><li><code>hidden_dims</code>: Tuple of hidden layer dimensions for default MLP (default: <code>(128, 64)</code>).</li><li><code>sample</code>: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. <code>Vector{UInt32}</code> from <code>fft(dist, db, k).centers</code>). If <code>nothing</code> (default), negative samples are uniformly drawn from <code>1:n</code>.</li><li><code>sample_probs</code>: Optional vector of sampling probabilities or weights corresponding to each element in <code>sample</code> (or <code>1:n</code>). If <code>nothing</code> (default), uniform sampling is used.</li><li><code>n_inliers</code>: Number of inlier neighbors. Default: <code>15</code>.</li><li><code>n_outliers</code>: Number of outlier neighbors. Default: <code>5</code>.</li><li><code>n_random</code>: Number of random negative samples. Default: <code>5</code>.</li><li><code>weight_adj</code>: Weight adjustment parameter. Default: <code>0.1</code>.</li><li><code>opt</code>: Optimizer instance from <code>Optimisers.jl</code> (default: <code>AdamW(learning_rate)</code>).</li><li><code>learning_rate</code>: Learning rate if <code>opt</code> is not specified. Default: <code>0.001</code>.</li><li><code>rng</code>: Random number generator. Default: <code>Random.default_rng()</code>.</li><li><code>verbose</code>: Whether to log iteration loss. Default: <code>false</code>.</li></ul><p><strong>Examples</strong></p><p><strong>Exact search with <code>ExhaustiveSearch</code> and <code>fft</code> negative sampling with cluster probabilities</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
+
+# Compute relative frequencies/probabilities from res_fft.nn
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Fit Parametric TriMAP with weighted fft negative sampling
+pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, maxoutdim=2, hidden_dims=(64, 32))
+
+# Predict embeddings for unseen points
+X_new = randn(Float32, 10, 50)
+Y_new = predict(pmodel, X_new)</code></pre><p><strong>Approximate search with <code>SearchGraph</code> (recall &lt; 1)</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall &lt; 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Fit Parametric TriMAP
+pmodel = fit(ParametricTrimap, X, knns, dists; maxoutdim=2)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L206-L302">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.fit-Tuple{Type{Trimap.Trimap}, AbstractMatrix{Float32}, AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><a class="docstring-binding" href="#Trimap.fit-Tuple{Type{Trimap.Trimap}, AbstractMatrix{Float32}, AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><code>Trimap.fit</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">fit(::Type{Trimap}, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+    maxoutdim=2,
+    n_epochs=400,
+    Y_init=nothing,
+    sample=nothing,
+    sample_probs=nothing,
+    n_inliers=15,
+    n_outliers=5,
+    n_random=5,
+    weight_adj=0.1,
+    opt=nothing,
+    learning_rate=0.1,
+    rng=Random.default_rng(),
+    verbose=false) -&gt; Trimap</code></pre><p>Fits non-parametric TriMAP dimensionality reduction given high-dimensional features <code>X</code>, precomputed nearest neighbor IDs (<code>knns::AbstractMatrix{UInt32}</code>), and distances (<code>dists::AbstractMatrix{Float32}</code>).</p><p><strong>Arguments</strong></p><ul><li><code>X</code>: <code>(dim × n)</code> input data matrix of type <code>Float32</code>.</li><li><code>knns</code>: <code>(k × n)</code> matrix of nearest neighbor IDs of type <code>UInt32</code> (e.g. from <code>allknn</code> or <code>searchbatch</code>).</li><li><code>dists</code>: <code>(k × n)</code> matrix of nearest neighbor distances of type <code>Float32</code>.</li></ul><p><strong>Keyword Arguments</strong></p><ul><li><code>maxoutdim</code>: Target embedding dimension (default: <code>2</code>).</li><li><code>n_epochs</code>: Optimization iterations / epochs (default: <code>400</code>).</li><li><code>Y_init</code>: Initial embedding matrix of size <code>(maxoutdim, n)</code>. If <code>nothing</code> (default), initialized via <code>pca_init(X, maxoutdim)</code>. Pass <code>:random</code> for Gaussian noise.</li><li><code>sample</code>: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. <code>Vector{UInt32}</code> from <code>fft(dist, db, k).centers</code>). If <code>nothing</code> (default), negative samples are drawn from <code>1:n</code>.</li><li><code>sample_probs</code>: Optional vector of sampling probabilities or weights corresponding to each element in <code>sample</code> (or <code>1:n</code>). If <code>nothing</code> (default), uniform sampling is used.</li><li><code>n_inliers</code>: Number of nearest neighbors treated as inliers (local structure). Default: <code>15</code>.</li><li><code>n_outliers</code>: Number of further neighbors treated as margin outliers. Default: <code>5</code>.</li><li><code>n_random</code>: Number of random negative samples per inlier (global structure). Default: <code>5</code>.</li><li><code>weight_adj</code>: Weight adjustment parameter controlling the influence of distance gaps. Default: <code>0.1</code>.</li><li><code>opt</code>: Optimizer instance from <code>Optimisers.jl</code> (default: <code>AdamW(learning_rate)</code>).</li><li><code>learning_rate</code>: Learning rate if <code>opt</code> is not specified. Default: <code>0.1</code>.</li><li><code>rng</code>: Random number generator. Default: <code>Random.default_rng()</code>.</li><li><code>verbose</code>: Whether to log iteration loss. Default: <code>false</code>.</li></ul><p><strong>Examples</strong></p><p><strong>Exact search with <code>ExhaustiveSearch</code> and <code>fft</code> negative sampling with cluster probabilities</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN (e.g., k = 25)
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
+
+# Compute relative frequencies/probabilities from res_fft.nn
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Fit non-parametric TriMAP with weighted fft negative sampling (PCA initialization is automatic)
+model = fit(Trimap, X, knns, dists; sample=sample_centers, sample_probs=sample_probs, maxoutdim=2)
+# model.embedding is of size (2, 500)</code></pre><p><strong>Approximate search with <code>SearchGraph</code> (recall &lt; 1)</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall &lt; 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Fit non-parametric TriMAP
+model = fit(Trimap, X, knns, dists; maxoutdim=2)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L45-L136">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.generate_triplets-Tuple{AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><a class="docstring-binding" href="#Trimap.generate_triplets-Tuple{AbstractMatrix{UInt32}, AbstractMatrix{Float32}}"><code>Trimap.generate_triplets</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">generate_triplets(knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+                  sample=nothing,
+                  sample_probs=nothing,
+                  n_inliers=15,
+                  n_outliers=5,
+                  n_random=5,
+                  weight_adj=0.1,
+                  rng=Random.default_rng()) -&gt; (triplets_i, triplets_j, triplets_k, weights)</code></pre><p>Generates TriMAP triplet constraints <code>(i, j, k)</code> where item <code>j</code> is closer to <code>i</code> than item <code>k</code> in the original space.</p><p><strong>Arguments</strong></p><ul><li><code>knns</code>: <code>(k × n)</code> matrix of nearest neighbor IDs of type <code>UInt32</code> (e.g., from <code>allknn</code> or <code>searchbatch</code>).</li><li><code>dists</code>: <code>(k × n)</code> matrix of corresponding distances of type <code>Float32</code>.</li></ul><p><strong>Keyword Arguments</strong></p><ul><li><code>sample</code>: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., <code>Vector{UInt32}</code> from <code>fft(dist, db, k).centers</code> or <code>AbstractMatrix{Float32}</code>). If <code>nothing</code> (default), negative samples are drawn from <code>1:n</code>.</li><li><code>sample_probs</code>: Optional vector of sampling probabilities or weights corresponding to each element in <code>sample</code> (or <code>1:n</code>). If <code>nothing</code> (default), uniform sampling is used.</li><li><code>n_inliers</code>: Number of nearest neighbors treated as inliers (local structure). Default: <code>15</code>.</li><li><code>n_outliers</code>: Number of further neighbors treated as margin outliers. Default: <code>5</code>.</li><li><code>n_random</code>: Number of random negative samples per inlier (global structure). Default: <code>5</code>.</li><li><code>weight_adj</code>: Weight adjustment parameter controlling the influence of distance gaps. Default: <code>0.1</code>.</li><li><code>rng</code>: Random number generator for negative sampling. Default: <code>Random.default_rng()</code>.</li></ul><p><strong>Returns</strong></p><ul><li><code>(triplets_i, triplets_j, triplets_k, weights)</code>: 1-based integer indices (<code>Int32</code>) and float weights (<code>Float32</code>) for triplet loss.</li></ul><p><strong>Examples</strong></p><p><strong>Exact search with <code>ExhaustiveSearch</code> and <code>fft</code> negative sampling with relative cluster probabilities</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and exact search index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+index = ExhaustiveSearch(Dist.L2(), db)
+
+# Compute exact all-kNN (e.g., k = 25)
+k = 25
+ctx = GenericContext()
+knns, dists = allknn(index, ctx, k)
+
+# Extract diverse landmarks using Farthest First Traversal (fft)
+res_fft = fft(Dist.L2(), db, 50)
+sample_centers = res_fft.centers
+
+# Count how many points choose each center in res_fft.nn to compute relative probabilities
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+# Generate triplets using the weighted fft sample
+triplets_i, triplets_j, triplets_k, weights = generate_triplets(
+    knns, dists;
+    sample=sample_centers,
+    sample_probs=sample_probs,
+    n_inliers=10,
+    n_outliers=5,
+    n_random=5
+)</code></pre><p><strong>Approximate search with <code>SearchGraph</code> (recall &lt; 1)</strong></p><pre><code class="language-julia hljs">using SimilaritySearch, Trimap
+
+# Create dataset and search graph index
+X = randn(Float32, 10, 500)
+db = MatrixDatabase(X)
+G = SearchGraph(Dist.L2(), db)
+ctx = SearchGraphContext()
+index!(G, ctx)
+
+# Optimize index for fast approximate search with target recall &lt; 1.0
+optimize_index!(G, ctx, MinRecall(0.85))
+
+# Compute approximate all-kNN
+k = 25
+knns, dists = allknn(G, ctx, k)
+
+# Generate triplets
+triplets_i, triplets_j, triplets_k, weights = generate_triplets(knns, dists; n_inliers=10, n_outliers=5, n_random=5)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/triplets.jl#L3-L90">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.optimize_embedding_triplets-Tuple{AbstractMatrix{Float32}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{Float32}}"><a class="docstring-binding" href="#Trimap.optimize_embedding_triplets-Tuple{AbstractMatrix{Float32}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{Float32}}"><code>Trimap.optimize_embedding_triplets</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">optimize_embedding_triplets(Y_init::AbstractMatrix{Float32}, triplets_i, triplets_j, triplets_k, weights;
+                            max_iters=400, opt=Optimisers.AdamW(0.1f0), verbose=false)</code></pre><p>Optimizes the low-dimensional embedding <code>Y</code> given precomputed triplets and weights.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/opt.jl#L3-L8">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.pca_init-Tuple{AbstractMatrix{Float32}, Integer}"><a class="docstring-binding" href="#Trimap.pca_init-Tuple{AbstractMatrix{Float32}, Integer}"><code>Trimap.pca_init</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">pca_init(X::AbstractMatrix{Float32}, out_dim::Integer; scale::Real=0.01f0) -&gt; Matrix{Float32}</code></pre><p>Computes PCA-based initialization of size <code>(out_dim, n)</code> from high-dimensional data <code>X</code> of size <code>(dim, n)</code>, scaled by <code>scale</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L26-L30">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.predict-Tuple{ParametricTrimap, AbstractMatrix{Float32}}"><a class="docstring-binding" href="#Trimap.predict-Tuple{ParametricTrimap, AbstractMatrix{Float32}}"><code>Trimap.predict</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">predict(m::ParametricTrimap, X::AbstractMatrix{Float32}) -&gt; Matrix{Float32}</code></pre><p>Maps unseen high-dimensional data points to embedding coordinates using the trained neural network.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/model.jl#L377-L381">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.train_parametric_trimap-Tuple{AbstractLuxLayer, AbstractMatrix{Float32}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{Float32}}"><a class="docstring-binding" href="#Trimap.train_parametric_trimap-Tuple{AbstractLuxLayer, AbstractMatrix{Float32}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{Float32}}"><code>Trimap.train_parametric_trimap</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">train_parametric_trimap(model::LuxCore.AbstractLuxLayer, X::AbstractMatrix{Float32},
+                        triplets_i, triplets_j, triplets_k, weights;
+                        max_iters=200, opt=Optimisers.AdamW(0.001f0),
+                        rng=Random.default_rng(), verbose=false)</code></pre><p>Trains a parametric neural network <code>model</code> (Lux) to map high-dimensional data <code>X</code> to low-dimensional embedding.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/opt.jl#L37-L44">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Trimap.trimap_loss-Tuple{AbstractMatrix, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Real}}"><a class="docstring-binding" href="#Trimap.trimap_loss-Tuple{AbstractMatrix, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Integer}, AbstractVector{&lt;:Real}}"><code>Trimap.trimap_loss</code></a> — <span class="docstring-category">Method</span></summary><section><div><pre><code class="language-julia hljs">trimap_loss(Y::AbstractMatrix,
+            triplets_i::AbstractVector{&lt;:Integer},
+            triplets_j::AbstractVector{&lt;:Integer},
+            triplets_k::AbstractVector{&lt;:Integer},
+            weights::AbstractVector{&lt;:Real})</code></pre><p>Computes the TriMAP triplet loss over embedding <code>Y</code> (where columns represent data points). Uses the Student-t kernel:</p><ul><li><span>$d_{ij} = 1 + \|y_i - y_j\|^2$</span></li><li><span>$d_{ik} = 1 + \|y_i - y_k\|^2$</span></li><li><span>$\mathcal{L} = \sum_{(i,j,k)} w_{ijk} \frac{d_{ij}}{d_{ij} + d_{ik}}$</span></li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/sadit/Trimap.jl/blob/5664a76c2020608a5a99ebb68fd4572f7db72d89/src/loss.jl#L3-L15">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorial_iris/">Iris Dataset »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 15 August 2026 23:55">Saturday 15 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
