@@ -47,6 +47,7 @@ end
         out_dim=2,
         maxoutdim=out_dim,
         Y_init=nothing,
+        sample=nothing,
         n_inliers=15,
         n_outliers=5,
         n_random=5,
@@ -68,6 +69,7 @@ Fits non-parametric TriMAP dimensionality reduction given precomputed nearest ne
 - `out_dim`: Target embedding dimension (default: `2`).
 - `maxoutdim`: Alias for `out_dim`.
 - `Y_init`: Optional initial embedding matrix of size `(out_dim, n)` (e.g. `Matrix{Float32}`). If `nothing`, initialized with Gaussian noise `randn * 0.01`. You may pass `pca_init(X, out_dim)`.
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
 - `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
@@ -80,7 +82,7 @@ Fits non-parametric TriMAP dimensionality reduction given precomputed nearest ne
 
 # Examples
 
-## Exact search with `ExhaustiveSearch`
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling
 ```julia
 using SimilaritySearch, Trimap
 
@@ -94,8 +96,11 @@ k = 25
 ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
-# Fit non-parametric TriMAP
-model = fit(Trimap, knns, dists; out_dim=2)
+# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
+sample_centers = fft(Dist.L2(), db, 50).centers
+
+# Fit non-parametric TriMAP with fft negative sampling
+model = fit(Trimap, knns, dists; sample=sample_centers, out_dim=2)
 # model.embedding is of size (2, 500)
 ```
 
@@ -128,6 +133,7 @@ function fit(
     out_dim::Integer=2,
     maxoutdim::Integer=out_dim,
     Y_init::Union{Nothing, AbstractMatrix{<:Real}}=nothing,
+    sample=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -153,6 +159,7 @@ function fit(
     i, j, k, w = generate_triplets(
         knns,
         dists;
+        sample=sample,
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,
@@ -192,6 +199,7 @@ end
         out_dim=2,
         maxoutdim=out_dim,
         hidden_dims=(128, 64),
+        sample=nothing,
         n_inliers=15,
         n_outliers=5,
         n_random=5,
@@ -215,6 +223,7 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 - `out_dim`: Target embedding dimension (default: `2`).
 - `maxoutdim`: Alias for `out_dim`.
 - `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `n_inliers`: Number of inlier neighbors. Default: `15`.
 - `n_outliers`: Number of outlier neighbors. Default: `5`.
 - `n_random`: Number of random negative samples. Default: `5`.
@@ -227,7 +236,7 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 
 # Examples
 
-## Exact search with `ExhaustiveSearch`
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling
 ```julia
 using SimilaritySearch, Trimap
 
@@ -241,8 +250,11 @@ k = 25
 ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
-# Fit Parametric TriMAP
-pmodel = fit(ParametricTrimap, X, knns, dists; out_dim=2, hidden_dims=(64, 32))
+# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
+sample_centers = fft(Dist.L2(), db, 50).centers
+
+# Fit Parametric TriMAP with fft negative sampling
+pmodel = fit(ParametricTrimap, X, knns, dists; sample=sample_centers, out_dim=2, hidden_dims=(64, 32))
 
 # Predict embeddings for unseen points
 X_new = randn(Float32, 10, 50)
@@ -280,6 +292,7 @@ function fit(
     out_dim::Integer=2,
     maxoutdim::Integer=out_dim,
     hidden_dims::Tuple=(128, 64),
+    sample=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -322,6 +335,7 @@ function fit(
     i, j, k, w = generate_triplets(
         knns,
         dists;
+        sample=sample,
         n_inliers=n_inliers,
         n_outliers=n_outliers,
         n_random=n_random,

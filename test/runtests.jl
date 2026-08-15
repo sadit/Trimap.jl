@@ -89,11 +89,24 @@ using LinearAlgebra
         @test model_approx isa TrimapModel
         @test size(model_approx.embedding) == (2, n)
         @test all(isfinite, model_approx.embedding)
+
+        # Using fft negative sampling
+        fft_sample = fft(Dist.L2(), db, 20)
+        model_fft = fit(Trimap, knns_exact, dists_exact; sample=fft_sample.centers, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        @test model_fft isa TrimapModel
+        @test size(model_fft.embedding) == (2, n)
+        @test all(isfinite, model_fft.embedding)
+
+        # Using NamedTuple directly from fft
+        model_fft_nt = fit(Trimap, knns_exact, dists_exact; sample=fft_sample, out_dim=2, n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        @test model_fft_nt isa TrimapModel
+        @test size(model_fft_nt.embedding) == (2, n)
     end
 
     @testset "Parametric TriMAP fit and predict" begin
-        # Default MLP with exact k-NN
-        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; out_dim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
+        # Default MLP with exact k-NN and fft negative sampling
+        fft_sample = fft(Dist.L2(), db, 20)
+        pm = fit(ParametricTrimap, X, knns_exact, dists_exact; sample=fft_sample.centers, out_dim=2, hidden_dims=(32,), n_inliers=10, n_outliers=5, n_random=5, max_iters=20)
         @test pm isa ParametricTrimap
         
         # In-sample prediction

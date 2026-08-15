@@ -2,6 +2,7 @@
 
 """
     generate_triplets(knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
+                      sample=nothing,
                       n_inliers=15,
                       n_outliers=5,
                       n_random=5,
@@ -15,6 +16,7 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 - `dists`: `(k × n)` matrix of corresponding distances of type `Float32`.
 
 # Keyword Arguments
+- `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
 - `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
@@ -26,7 +28,7 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 
 # Examples
 
-## Exact search with `ExhaustiveSearch`
+## Exact search with `ExhaustiveSearch` and `fft` negative sampling
 ```julia
 using SimilaritySearch, Trimap
 
@@ -40,8 +42,17 @@ k = 25
 ctx = GenericContext()
 knns, dists = allknn(index, ctx, k)
 
-# Generate triplets
-triplets_i, triplets_j, triplets_k, weights = generate_triplets(knns, dists; n_inliers=10, n_outliers=5, n_random=5)
+# Extract a diverse sample for negative sampling using Farthest First Traversal (fft)
+sample_centers = fft(Dist.L2(), db, 50).centers
+
+# Generate triplets using the fft sample
+triplets_i, triplets_j, triplets_k, weights = generate_triplets(
+    knns, dists;
+    sample=sample_centers,
+    n_inliers=10,
+    n_outliers=5,
+    n_random=5
+)
 ```
 
 ## Approximate search with `SearchGraph` (recall < 1)
@@ -69,6 +80,7 @@ triplets_i, triplets_j, triplets_k, weights = generate_triplets(knns, dists; n_i
 function generate_triplets(
     knns::AbstractMatrix{UInt32},
     dists::AbstractMatrix{Float32};
+    sample=nothing,
     n_inliers::Integer=15,
     n_outliers::Integer=5,
     n_random::Integer=5,
@@ -77,6 +89,19 @@ function generate_triplets(
 )
     size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
     k_knn, n = size(knns)
+
+    # Determine sample source for random negative sampling
+    sample_pool = if sample === nothing
+        nothing
+    elseif sample isa NamedTuple && haskey(sample, :centers)
+        sample.centers
+    elseif sample isa AbstractVector{<:Integer}
+        sample
+    elseif sample isa AbstractMatrix
+        1:size(sample, 2)
+    else
+        sample
+    end
 
     triplets_i = Int32[]
     triplets_j = Int32[]
@@ -136,8 +161,8 @@ function generate_triplets(
             d_ij = distances[idx_j]
             w_ij = exp(-Float32(d_ij) / (scale + 1f-5))
             for _ in 1:n_random
-                k = rand(rng, 1:n)
-                if k != i && k != j
+                k = sample_pool === nothing ? rand(rng, 1:n) : rand(rng, sample_pool)
+                if k != i && k != j && k >= 1 && k <= n
                     push!(triplets_i, Int32(i))
                     push!(triplets_j, Int32(j))
                     push!(triplets_k, Int32(k))
