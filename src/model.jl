@@ -49,9 +49,9 @@ end
         Y_init=nothing,
         sample=nothing,
         sample_probs=nothing,
-        n_inliers=15,
-        n_outliers=5,
-        n_random=5,
+        n_inliers=nothing,
+        n_outliers=nothing,
+        n_random=nothing,
         weight_adj=0.1,
         opt=nothing,
         learning_rate=0.1,
@@ -71,9 +71,9 @@ Fits non-parametric TriMAP dimensionality reduction given high-dimensional featu
 - `Y_init`: Initial embedding matrix of size `(maxoutdim, n)`. If `nothing` (default), initialized via `pca_init(X, maxoutdim)`. Pass `:random` for Gaussian noise.
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
-- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
-- `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 2k/3)`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/3)`.
+- `n_random`: Number of random negative samples per inlier (global structure). Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
 - `learning_rate`: Learning rate if `opt` is not specified. Default: `0.1`.
@@ -144,9 +144,9 @@ function fit(
     Y_init::Union{Nothing, Symbol, AbstractMatrix{<:Real}}=nothing,
     sample=nothing,
     sample_probs=nothing,
-    n_inliers::Integer=15,
-    n_outliers::Integer=5,
-    n_random::Integer=5,
+    n_inliers::Union{Nothing, Integer}=nothing,
+    n_outliers::Union{Nothing, Integer}=nothing,
+    n_random::Union{Nothing, Integer}=nothing,
     weight_adj::Real=0.1,
     opt=nothing,
     learning_rate::Real=0.1,
@@ -207,16 +207,16 @@ end
     fit(::Type{ParametricTrimap}, X::AbstractMatrix{Float32}, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
         model=nothing,
         maxoutdim=2,
-        n_epochs=200,
+        n_epochs=400,
         hidden_dims=(128, 64),
         sample=nothing,
         sample_probs=nothing,
-        n_inliers=15,
-        n_outliers=5,
-        n_random=5,
+        n_inliers=nothing,
+        n_outliers=nothing,
+        n_random=nothing,
         weight_adj=0.1,
         opt=nothing,
-        learning_rate=0.001,
+        learning_rate=0.1,
         rng=Random.default_rng(),
         verbose=false) -> ParametricTrimap
 
@@ -230,16 +230,16 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 # Keyword Arguments
 - `model`: Custom `Lux` layer/network mapping `dim -> maxoutdim`. If `nothing`, a multilayer perceptron with `hidden_dims` and ReLU activations is constructed.
 - `maxoutdim`: Target embedding dimension (default: `2`).
-- `n_epochs`: Optimization epochs (default: `200`).
+- `n_epochs`: Optimization epochs (default: `400`).
 - `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of inlier neighbors. Default: `15`.
-- `n_outliers`: Number of outlier neighbors. Default: `5`.
-- `n_random`: Number of random negative samples. Default: `5`.
+- `n_inliers`: Number of inlier neighbors. Default: `round(Int, 2k/3)`.
+- `n_outliers`: Number of outlier neighbors. Default: `round(Int, k/3)`.
+- `n_random`: Number of random negative samples. Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter. Default: `0.1`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
-- `learning_rate`: Learning rate if `opt` is not specified. Default: `0.001`.
+- `learning_rate`: Learning rate if `opt` is not specified. Default: `0.1`.
 - `rng`: Random number generator. Default: `Random.default_rng()`.
 - `verbose`: Whether to log iteration loss. Default: `false`.
 
@@ -307,16 +307,16 @@ function fit(
     dists::AbstractMatrix{Float32};
     model::Union{Nothing, LuxCore.AbstractLuxLayer}=nothing,
     maxoutdim::Integer=2,
-    n_epochs::Integer=200,
+    n_epochs::Integer=400,
     hidden_dims::Tuple=(128, 64),
     sample=nothing,
     sample_probs=nothing,
-    n_inliers::Integer=15,
-    n_outliers::Integer=5,
-    n_random::Integer=5,
+    n_inliers::Union{Nothing, Integer}=nothing,
+    n_outliers::Union{Nothing, Integer}=nothing,
+    n_random::Union{Nothing, Integer}=nothing,
     weight_adj::Real=0.1,
     opt=nothing,
-    learning_rate::Real=0.001,
+    learning_rate::Real=0.1,
     rng::Random.AbstractRNG=Random.default_rng(),
     verbose::Bool=false
 )

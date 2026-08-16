@@ -29,7 +29,12 @@ using LinearAlgebra
     knns_approx, dists_approx = allknn(G, ctx, k)
 
     @testset "Triplet generation" begin
-        # Direct matrices from ExhaustiveSearch
+        # Default proportional generation (2/3 k and 1/3 k)
+        i0, j0, k0, w0 = generate_triplets(knns_exact, dists_exact)
+        @test length(i0) == length(j0) == length(k0) == length(w0)
+        @test length(i0) > 0
+
+        # Direct matrices from ExhaustiveSearch with custom parameters
         i, j, k_trip, w = generate_triplets(knns_exact, dists_exact; n_inliers=10, n_outliers=5, n_random=5)
         @test length(i) == length(j) == length(k_trip) == length(w)
         @test length(i) > 0
@@ -101,10 +106,10 @@ using LinearAlgebra
         @test size(model_fft.embedding) == (2, n)
         @test all(isfinite, model_fft.embedding)
 
-        # Using NamedTuple directly from fft
-        model_fft_nt = fit(Trimap, X, knns_exact, dists_exact; sample=fft_sample, maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
-        @test model_fft_nt isa TrimapModel
-        @test size(model_fft_nt.embedding) == (2, n)
+        # Using index range as sample
+        model_range_sample = fit(Trimap, X, knns_exact, dists_exact; sample=1:50, maxoutdim=2, n_inliers=10, n_outliers=5, n_random=5, n_epochs=20)
+        @test model_range_sample isa TrimapModel
+        @test size(model_range_sample.embedding) == (2, n)
 
         # Using fft negative sampling with cluster probabilities from .nn
         counts = Dict{UInt32, Float32}()

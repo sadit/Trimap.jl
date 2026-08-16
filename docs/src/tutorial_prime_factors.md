@@ -22,8 +22,8 @@ using Primes, PlotlyLight, Lux, Random, Statistics
 
 Random.seed!(42)
 
-# Consider integers from 2 to 2000
-N_max = 2000
+# Consider integers from 2 to 3000
+N_max = 3000
 numbers = collect(2:N_max)
 n_items = length(numbers)
 
@@ -68,7 +68,7 @@ index!(G, ctx)
 # Optimize for fast 90% recall search
 optimize_index!(G, ctx, MinRecall(0.90))
 
-k = 30
+k = 20
 knns_primes, dists_primes = allknn(G, ctx, k)
 ```
 
@@ -102,12 +102,7 @@ model_primes = fit(
     X_primes,
     knns_primes,
     dists_primes;
-    sample=sample_centers,
-    sample_probs=sample_probs,
     maxoutdim=2,
-    n_inliers=15,
-    n_outliers=5,
-    n_random=5,
     n_epochs=400,
     learning_rate=0.1
 )
@@ -178,7 +173,7 @@ Plot(traces_primes, layout_primes)
 
 ## 6. Parametric TriMAP: Out-of-Sample Prediction
 
-What if we want to project **new unseen integers** (e.g. $n \in \{2001, \dots, 2100\}$) without re-optimizing the entire dataset?
+What if we want to project **new unseen integers** (e.g. $n \in \{3001, \dots, 3150\}$) without re-optimizing the entire dataset?
 
 We use `ParametricTrimap` backed by a `Lux` neural network trained on the multi-hot feature vectors `X_primes`:
 
@@ -189,16 +184,14 @@ pmodel = fit(
     X_primes,
     knns_primes,
     dists_primes;
-    sample=sample_centers,
-    sample_probs=sample_probs,
     maxoutdim=2,
     hidden_dims=(128, 64),
-    n_epochs=250,
-    learning_rate=0.002
+    n_epochs=400,
+    learning_rate=0.1
 )
 
 # Unseen test integers
-test_numbers = collect(2001:2100)
+test_numbers = collect(3001:3150)
 test_prime_sets = [unique(factor(Vector, num)) for num in test_numbers]
 X_test = hcat([featurize(fs) for fs in test_prime_sets]...)
 

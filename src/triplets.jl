@@ -4,9 +4,9 @@
     generate_triplets(knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32};
                       sample=nothing,
                       sample_probs=nothing,
-                      n_inliers=15,
-                      n_outliers=5,
-                      n_random=5,
+                      n_inliers=nothing,
+                      n_outliers=nothing,
+                      n_random=nothing,
                       weight_adj=0.1,
                       rng=Random.default_rng()) -> (triplets_i, triplets_j, triplets_k, weights)
 
@@ -19,9 +19,9 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 # Keyword Arguments
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `15`.
-- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `5`.
-- `n_random`: Number of random negative samples per inlier (global structure). Default: `5`.
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 2k/3)`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/3)`.
+- `n_random`: Number of random negative samples per inlier (global structure). Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
 - `rng`: Random number generator for negative sampling. Default: `Random.default_rng()`.
 
@@ -93,30 +93,28 @@ function generate_triplets(
     dists::AbstractMatrix{Float32};
     sample=nothing,
     sample_probs=nothing,
-    n_inliers::Integer=15,
-    n_outliers::Integer=5,
-    n_random::Integer=5,
+    n_inliers::Union{Nothing, Integer}=nothing,
+    n_outliers::Union{Nothing, Integer}=nothing,
+    n_random::Union{Nothing, Integer}=nothing,
     weight_adj::Real=0.1,
     rng::Random.AbstractRNG=Random.default_rng()
 )
     size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
     k_knn, n = size(knns)
 
-    # Determine sample source for random negative sampling
-    sample_pool = if sample === nothing
+    n_inliers_val = n_inliers === nothing ? max(1, round(Int, 2 * k_knn / 3)) : Int(n_inliers)
+    n_outliers_val = n_outliers === nothing ? max(1, round(Int, k_knn / 3)) : Int(n_outliers)
+    n_random_val = n_random === nothing ? n_outliers_val : Int(n_random)
+
+    # Determine sample source for random negative sampling (indices or range)
+    sample = if sample === nothing
         1:n
-    elseif sample isa NamedTuple && haskey(sample, :centers)
-        sample.centers
-    elseif sample isa AbstractVector{<:Integer}
-        sample
-    elseif sample isa AbstractMatrix
-        1:size(sample, 2)
     else
         sample
     end
 
     cum_probs = if sample_probs !== nothing
-        length(sample_probs) == length(sample_pool) || throw(DimensionMismatch("sample_probs must have length $(length(sample_pool)); got $(length(sample_probs))"))
+        length(sample_probs) == length(sample) || throw(DimensionMismatch("sample_probs must have length $(length(sample)); got $(length(sample_probs))"))
         cp = cumsum(Float64.(sample_probs))
         cp[end] > 0 || throw(ArgumentError("Sum of sample_probs must be positive"))
         cp
@@ -130,7 +128,7 @@ function generate_triplets(
     weights = Float32[]
 
     # Estimate capacity
-    n_triplets_est = n * (n_inliers * n_outliers + n_inliers * n_random)
+    n_triplets_est = n * (n_inliers_val * n_outliers_val + n_inliers_val * n_random_val)
     sizehint!(triplets_i, n_triplets_est)
     sizehint!(triplets_j, n_triplets_est)
     sizehint!(triplets_k, n_triplets_est)
@@ -143,15 +141,15 @@ function generate_triplets(
         for row in 1:k_knn
             nid = knns[row, i]
             ndist = dists[row, i]
-            if nid != i && nid > 0 && nid <= n
+            if nid != i && nid > 0 && nid <= n && ndist < typemax(Float32)
                 push!(neighbors, Int32(nid))
                 push!(distances, Float32(ndist))
             end
         end
 
         num_neighbors = length(neighbors)
-        n_in = min(n_inliers, num_neighbors)
-        n_out = min(n_outliers, max(0, num_neighbors - n_in))
+        n_in = min(n_inliers_val, num_neighbors)
+        n_out = min(n_outliers_val, max(0, num_neighbors - n_in))
 
         inliers = view(neighbors, 1:n_in)
         outliers = view(neighbors, (n_in + 1):(n_in + n_out))
@@ -181,14 +179,14 @@ function generate_triplets(
         for (idx_j, j) in enumerate(inliers)
             d_ij = distances[idx_j]
             w_ij = exp(-Float32(d_ij) / (scale + 1f-5))
-            for _ in 1:n_random
+            for _ in 1:n_random_val
                 k = if cum_probs === nothing
-                    rand(rng, sample_pool)
+                    rand(rng, sample)
                 else
                     r = rand(rng, Float64) * cum_probs[end]
                     idx = searchsortedfirst(cum_probs, r)
-                    idx = clamp(idx, 1, length(sample_pool))
-                    sample_pool[idx]
+                    idx = clamp(idx, 1, length(sample))
+                    sample[idx]
                 end
                 if k != i && k != j && k >= 1 && k <= n
                     push!(triplets_i, Int32(i))

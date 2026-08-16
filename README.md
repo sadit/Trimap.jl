@@ -102,7 +102,7 @@ pmodel = fit(
     dists;
     maxoutdim=2,
     hidden_dims=(128, 64),
-    n_epochs=200
+    n_epochs=400
 )
 
 # Project new unseen data points in O(1) time
