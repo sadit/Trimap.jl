@@ -1,20 +1,21 @@
 # Tutorial 2: Non-linear Manifolds - Two Moons and Spirals
 
-In this tutorial, we evaluate TriMAP on synthetic non-linear manifolds: the classic **Two Moons** dataset and **Intertwined Spirals**. For each dataset, we:
-1. Visualize the **original 2D input manifold**.
-2. Compute and visualize the **linear 2D PCA baseline**.
+In this tutorial, we evaluate TriMAP on synthetic non-linear manifolds: the classic **Two Moons** dataset and **Intertwined Spirals**. Both start life as a simple 2D curve, but a 2D curve *is already* its own best 2D representation — projecting it back to 2D with PCA would trivially "solve" the problem without testing anything. So for each dataset, we:
+
+1. Generate the **original 2D curve** (for intuition) and then **embed it non-linearly into a higher-dimensional ambient space** (random sinusoidal features + a random rotation + noise). This is the actual input to the pipeline below, and is the point where linear PCA genuinely has something to fail at.
+2. Compute and visualize the **linear 2D PCA baseline** on that high-dimensional embedding.
 3. Compute the nearest neighbor graph using `SimilaritySearch.SearchGraph` or `ExhaustiveSearch`.
-4. Apply **TriMAP** (with representative `fft` negative sampling and `sample_probs` weighting) and visualize the unwrapped manifold with **PlotlyLight.jl**.
+4. Apply **TriMAP** and visualize the recovered 2D manifold with **PlotlyLight.jl**.
 
 ---
 
 ## 1. Two Moons Manifold
 
-### 1.1 Generating and Visualizing 2D Input Data
+### 1.1 Generating and Visualizing the Original 2D Manifold
 
 ```@example moons
 using SimilaritySearch, Trimap
-using PlotlyLight, Random, Statistics
+using PlotlyLight, Random, Statistics, LinearAlgebra
 
 Random.seed!(42)
 
@@ -34,31 +35,57 @@ function make_moons(n_samples=1200, noise=0.05f0)
     X, labels
 end
 
-X_moons, labels_moons = make_moons(1200, 0.05f0)
-println("Moons dataset size: ", size(X_moons))
+X_moons_2d, labels_moons = make_moons(1200, 0.05f0)
+println("Moons dataset size (ground-truth 2D curve): ", size(X_moons_2d))
 
-# 1. Visualize Original 2D Input Data
+# Visualize the ground-truth 2D shape we are trying to recover
 traces_input_moons = [
     Config(
-        x = X_moons[1, labels_moons .== "Moon A"],
-        y = X_moons[2, labels_moons .== "Moon A"],
+        x = X_moons_2d[1, labels_moons .== "Moon A"],
+        y = X_moons_2d[2, labels_moons .== "Moon A"],
         mode = "markers",
         name = "Moon A",
         marker = Config(size=4, color="#1f77b4", opacity=0.85)
     ),
     Config(
-        x = X_moons[1, labels_moons .== "Moon B"],
-        y = X_moons[2, labels_moons .== "Moon B"],
+        x = X_moons_2d[1, labels_moons .== "Moon B"],
+        y = X_moons_2d[2, labels_moons .== "Moon B"],
         mode = "markers",
         name = "Moon B",
         marker = Config(size=4, color="#ff7f0e", opacity=0.85)
     )
 ]
 
-Plot(traces_input_moons, Config(title="Two Moons: Original 2D Input Space"))
+Plot(traces_input_moons, Config(title="Two Moons: Ground-Truth 2D Manifold"))
 ```
 
-### 1.2 Baseline: 2D PCA Projection
+### 1.2 Embedding into a Higher-Dimensional Ambient Space
+
+We lift the 2D curve into a 50-dimensional ambient space with a random non-linear (sinusoidal) feature map, then mix all 50 coordinates with a random rotation and add a little noise. This is the same trick used to build classic "swiss roll"-style benchmarks: the manifold is still intrinsically 2D and its *local* neighborhood structure is preserved (nearby points on the curve stay close in the 50D space), but the *global* embedding is no longer a simple linear subspace, so linear PCA can no longer trivially recover it.
+
+```@example moons
+function embed_high_dim(X2d::AbstractMatrix{Float32}, D::Integer; noise=0.02f0, rng=Random.default_rng())
+    d, n = size(X2d)
+    A = randn(rng, Float32, D - d, d)              # random frequencies
+    b = Float32(2π) .* rand(rng, Float32, D - d)    # random phases
+    extra = sin.(A * X2d .+ b)                      # (D-d, n) non-linear features of (x, y)
+    X_stack = vcat(X2d, extra)                      # (D, n)
+    Qmat = Matrix(qr(randn(rng, Float32, D, D)).Q)  # random rotation, mixes all D coordinates
+    Qmat * X_stack .+ noise .* randn(rng, Float32, D, n)
+end
+
+Random.seed!(7)
+X_moons = embed_high_dim(X_moons_2d, 50; noise=0.02f0)
+println("Moons dataset size (50D ambient embedding): ", size(X_moons))
+```
+
+### 1.3 Baseline: 2D PCA Projection
+
+```@example moons
+Xc = X_moons .- mean(X_moons, dims=2)
+var_explained = svd(Xc).S .^ 2 ./ sum(svd(Xc).S .^ 2)
+println("Variance explained by top 2 PCs: ", round(sum(var_explained[1:2]) * 100, digits=1), "%")
+```
 
 ```@example moons
 Y_pca_moons = pca_init(X_moons, 2; scale=1.0f0)
@@ -80,10 +107,12 @@ traces_pca_moons = [
     )
 ]
 
-Plot(traces_pca_moons, Config(title="Two Moons: Linear 2D PCA Projection"))
+Plot(traces_pca_moons, Config(title="Two Moons: Linear 2D PCA Projection of the 50D Embedding"))
 ```
 
-### 1.3 Approximate $k$-NN with `SearchGraph`
+With most of the variance spread outside the top 2 components, the PCA projection visibly tangles the two moons — a real linear-projection failure, unlike projecting the original 2D curve onto itself.
+
+### 1.4 Approximate $k$-NN with `SearchGraph`
 
 Instead of exhaustive search, we construct an approximate `SearchGraph` and optimize its search parameters for a target recall (90%):
 
@@ -100,7 +129,7 @@ k = 20
 knns_moons, dists_moons = allknn(G, ctx_g, k)
 ```
 
-### 1.4 TriMAP Embedding
+### 1.5 TriMAP Embedding
 
 ```@example moons
 model_moons = fit(
@@ -135,19 +164,19 @@ traces_trimap_moons = [
 Plot(traces_trimap_moons, Config(title="Two Moons: TriMAP 2D Projection (SearchGraph k-NN)"))
 ```
 
+TriMAP with its default settings recovers two clean, well-separated crescents from the 50D embedding — the two moons are simple, well-separated curves, so the default inlier/outlier margin triplets work well here.
+
 ---
 
 ## 2. 3 Intertwined Spirals Manifold
 
-Complex spiral structures are notoriously challenging for dimensionality reduction methods because standard random negative sampling can mistakenly pull distant spiral arms together across gaps.
+Complex spiral structures are notoriously challenging for dimensionality reduction methods. As with the moons above, we first embed the 2D spiral non-linearly into a higher-dimensional ambient space so PCA has a real unwrapping problem to fail at.
 
-Below we first fit TriMAP with the default uniform random negative sampling (§2.4), then compare it against negative samples drawn from **Farthest First Traversal (`fft`)** landmarks and weighted by their Voronoi basin sizes (`sample_probs` from `res.nn`, §2.5). `fft`/`sample_probs` sampling is most useful on large datasets, where it concentrates negative samples on a small, diverse landmark set instead of drawing uniformly from all `n` points — it does not, by itself, fix the local inlier/outlier margin pressure that causes the artifacts you'll see below on this particular tightly-wound toy manifold.
-
-### 2.1 Generating and Visualizing 2D Spiral Data
+### 2.1 Generating and Visualizing the Original 2D Spiral Curve
 
 ```@example spirals
 using SimilaritySearch, Trimap
-using PlotlyLight, Random, Statistics
+using PlotlyLight, Random, Statistics, LinearAlgebra
 
 Random.seed!(42)
 
@@ -171,28 +200,51 @@ function make_spirals(n_points_per_arm=600, noise=0.03f0)
     X, labels_all
 end
 
-X_spirals, labels_spirals = make_spirals(600, 0.03f0)
-println("Spirals dataset size: ", size(X_spirals))
+X_spirals_2d, labels_spirals = make_spirals(600, 0.03f0)
+println("Spirals dataset size (ground-truth 2D curve): ", size(X_spirals_2d))
 
 colors = Dict("Spiral 1" => "#636EFA", "Spiral 2" => "#EF553B", "Spiral 3" => "#00CC96")
 
-# 1. Visualize Original 2D Input Data
 traces_input_spirals = Config[]
 for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
     idx = findall(==(arm_name), labels_spirals)
     push!(traces_input_spirals, Config(
-        x = X_spirals[1, idx],
-        y = X_spirals[2, idx],
+        x = X_spirals_2d[1, idx],
+        y = X_spirals_2d[2, idx],
         mode = "markers",
         name = arm_name,
         marker = Config(size=3, color=colors[arm_name], opacity=0.85)
     ))
 end
 
-Plot(traces_input_spirals, Config(title="3 Intertwined Spirals: Original 2D Input Space"))
+Plot(traces_input_spirals, Config(title="3 Intertwined Spirals: Ground-Truth 2D Manifold"))
 ```
 
-### 2.2 Baseline: 2D PCA Projection
+### 2.2 Embedding into a Higher-Dimensional Ambient Space
+
+```@example spirals
+function embed_high_dim(X2d::AbstractMatrix{Float32}, D::Integer; noise=0.02f0, rng=Random.default_rng())
+    d, n = size(X2d)
+    A = randn(rng, Float32, D - d, d)
+    b = Float32(2π) .* rand(rng, Float32, D - d)
+    extra = sin.(A * X2d .+ b)
+    X_stack = vcat(X2d, extra)
+    Qmat = Matrix(qr(randn(rng, Float32, D, D)).Q)
+    Qmat * X_stack .+ noise .* randn(rng, Float32, D, n)
+end
+
+Random.seed!(7)
+X_spirals = embed_high_dim(X_spirals_2d, 50; noise=0.02f0)
+println("Spirals dataset size (50D ambient embedding): ", size(X_spirals))
+```
+
+### 2.3 Baseline: 2D PCA Projection
+
+```@example spirals
+Xc = X_spirals .- mean(X_spirals, dims=2)
+var_explained = svd(Xc).S .^ 2 ./ sum(svd(Xc).S .^ 2)
+println("Variance explained by top 2 PCs: ", round(sum(var_explained[1:2]) * 100, digits=1), "%")
+```
 
 ```@example spirals
 Y_pca_spirals = pca_init(X_spirals, 2; scale=1.0f0)
@@ -209,12 +261,12 @@ for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
     ))
 end
 
-Plot(traces_pca_spirals, Config(title="3 Spirals: Linear 2D PCA Projection"))
+Plot(traces_pca_spirals, Config(title="3 Spirals: Linear 2D PCA Projection of the 50D Embedding"))
 ```
 
-Because PCA is a linear projection, it preserves the rotation and entanglement of the spirals without unwrapping the non-linear manifold.
+With less than half the variance captured by 2 components, linear PCA scrambles the three arms into an unrecognizable blob.
 
-### 2.3 Computing $k$-NN
+### 2.4 Computing $k$-NN
 
 ```@example spirals
 db_spirals = MatrixDatabase(X_spirals)
@@ -223,7 +275,7 @@ ctx = GenericContext()
 knns_spirals, dists_spirals = allknn(index_spirals, ctx, 20)
 ```
 
-### 2.4 TriMAP 2D Embedding
+### 2.5 TriMAP with Default Settings
 
 ```@example spirals
 model_spirals = fit(
@@ -252,7 +304,7 @@ for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
 end
 
 layout_spirals = Config(
-    title = "3 Spirals: TriMAP 2D Embedding (uniform random negatives)",
+    title = "3 Spirals: TriMAP 2D Embedding (default settings)",
     xaxis = Config(title = "TriMAP 1", zeroline=false),
     yaxis = Config(title = "TriMAP 2", zeroline=false),
     hovermode = "closest"
@@ -261,9 +313,14 @@ layout_spirals = Config(
 Plot(traces_trimap_spirals, layout_spirals)
 ```
 
-### 2.5 TriMAP with `fft`/`sample_probs` Negative Sampling
+This is noticeably better than PCA, but still tangled in places — each spiral arm is a single continuous curve with no real cluster boundary between "near" and "far" neighbors along it, so the default inlier/outlier margin triplets (tuned for genuinely clustered data) fight against the smoothness of the curve.
 
-Instead of drawing negative samples uniformly from all `n` points, we pick a diverse landmark set with Farthest First Traversal (`fft`) and weight each landmark by how many points fall into its Voronoi cell (`res_fft.nn` counts). This concentrates the "global" (`n_random`) triplets on a small representative sample instead of the full dataset — useful when `n` is large and uniform sampling becomes wasteful or noisy.
+### 2.6 Tuning for Continuous Manifolds: Fewer Margin Outliers + `fft` Negative Sampling
+
+Two changes help specifically because this manifold is one continuous curve per arm, not a set of clusters:
+
+- **`n_outliers=0`**: drop the inlier/outlier margin triplets entirely and rely only on inliers plus random negatives (`n_random`). Without a real cluster boundary, the margin triplets mostly inject noise; removing them stops that fight.
+- **`fft`/`sample_probs` landmark negative sampling**: pick a diverse landmark set with Farthest First Traversal (`fft`) and weight each by its Voronoi basin size (`res_fft.nn` counts), instead of drawing negatives uniformly from all `n` points.
 
 ```@example spirals
 res_fft = fft(Dist.L2(), db_spirals, 60)
@@ -275,41 +332,43 @@ for c in res_fft.nn
 end
 sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
 
-model_spirals_fft = fit(
+model_spirals_tuned = fit(
     Trimap,
     X_spirals,
     knns_spirals,
     dists_spirals;
     sample=sample_centers,
     sample_probs=sample_probs,
+    n_outliers=0,
+    n_random=7,
     maxoutdim=2,
     weight_adj=0.15,
     n_epochs=400,
     learning_rate=0.1
 )
 
-Y_spirals_fft = model_spirals_fft.embedding
+Y_spirals_tuned = model_spirals_tuned.embedding
 
-traces_trimap_spirals_fft = Config[]
+traces_trimap_spirals_tuned = Config[]
 for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
     idx = findall(==(arm_name), labels_spirals)
-    push!(traces_trimap_spirals_fft, Config(
-        x = Y_spirals_fft[1, idx],
-        y = Y_spirals_fft[2, idx],
+    push!(traces_trimap_spirals_tuned, Config(
+        x = Y_spirals_tuned[1, idx],
+        y = Y_spirals_tuned[2, idx],
         mode = "markers",
         name = arm_name,
         marker = Config(size=4, color=colors[arm_name], opacity=0.85)
     ))
 end
 
-layout_spirals_fft = Config(
-    title = "3 Spirals: TriMAP 2D Embedding (fft landmark negatives)",
+layout_spirals_tuned = Config(
+    title = "3 Spirals: TriMAP 2D Embedding (n_outliers=0 + fft landmark negatives)",
     xaxis = Config(title = "TriMAP 1", zeroline=false),
     yaxis = Config(title = "TriMAP 2", zeroline=false),
     hovermode = "closest"
 )
 
-Plot(traces_trimap_spirals_fft, layout_spirals_fft)
+Plot(traces_trimap_spirals_tuned, layout_spirals_tuned)
 ```
 
-On this specific dataset the two runs look similar: the three arms are a single continuous 1D curve each, with no real cluster boundary between "near" and "far" neighbors along the same arm, so the inlier/outlier margin mechanism (designed for clustered data) fights the smoothness of the curve regardless of how negative samples are drawn. `fft`/`sample_probs` sampling pays off most on datasets with genuine cluster structure and large `n`, such as the [FashionMNIST tutorial](tutorial_fashion_mnist.md).
+This tuned setting unwinds the three arms far more cleanly than both the PCA baseline and the default TriMAP run. The general lesson: `n_outliers`/margin triplets are designed for data with genuine cluster boundaries (like [FashionMNIST](tutorial_fashion_mnist.md) or [Iris](tutorial_iris.md)); for data that is intrinsically one continuous curve per class, lowering or zeroing `n_outliers` and leaning on `n_random` (optionally with `fft`/`sample_probs` landmarks) is worth trying.
