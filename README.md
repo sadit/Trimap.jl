@@ -114,8 +114,9 @@ Y_new = predict(pmodel, X_new) # (2, 100) Matrix{Float32}
 
 ## 🔗 Related Packages
 
-- **[SimSearchManifoldLearning.jl](https://github.com/sadit/SimSearchManifoldLearning.jl)**: Companion package in the [SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl) ecosystem focused on scalable manifold learning, non-linear dimensionality reduction, and metric embeddings. It provides complementary algorithms (such as LapMaps, Laplacian Eigenmaps, and UMAP-compatible projections) natively designed to operate on similarity search graphs and arbitrary metric structures.
+- **[SimSearchManifoldLearning.jl](https://github.com/sadit/SimSearchManifoldLearning.jl)**: Companion package in the [SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl) ecosystem. It implements UMAP natively for similarity search graphs and serves as a bridge to seamlessly integrate `SimilaritySearch.jl` indices with the diverse manifold learning algorithms in [ManifoldLearning.jl](https://github.com/wildart/ManifoldLearning.jl) (such as Isomap, LLE, Laplacian Eigenmaps, and Hessian LLE).
 - **[UMAP.jl](https://github.com/dillondaudert/UMAP.jl)**: A Julia implementation of the Uniform Manifold Approximation and Projection (UMAP) algorithm for dimension reduction.
+- **[ManifoldLearning.jl](https://github.com/wildart/ManifoldLearning.jl)**: A Julia package for non-linear dimensionality reduction algorithms.
 - **[SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl)**: High-performance similarity search and approximate nearest neighbor index structures in Julia.
 
 ---
