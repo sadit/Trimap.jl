@@ -57,6 +57,14 @@ model = fit(Trimap, X, knns, dists; maxoutdim=2)
 
 ---
 
+## Related Packages
+
+- **[SimSearchManifoldLearning.jl](https://github.com/sadit/SimSearchManifoldLearning.jl)**: Companion package in the [SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl) ecosystem focused on scalable manifold learning, non-linear dimensionality reduction, and metric embeddings. It provides complementary algorithms (such as LapMaps, Laplacian Eigenmaps, and UMAP-compatible projections) natively designed to operate on similarity search graphs and arbitrary metric structures.
+- **[UMAP.jl](https://github.com/dillondaudert/UMAP.jl)**: A Julia implementation of the Uniform Manifold Approximation and Projection (UMAP) algorithm for dimension reduction.
+- **[SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl)**: High-performance similarity search and approximate nearest neighbor index structures in Julia.
+
+---
+
 ## API Reference
 
 ```@autodocs

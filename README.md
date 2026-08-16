@@ -112,6 +112,14 @@ Y_new = predict(pmodel, X_new) # (2, 100) Matrix{Float32}
 
 ---
 
+## 🔗 Related Packages
+
+- **[SimSearchManifoldLearning.jl](https://github.com/sadit/SimSearchManifoldLearning.jl)**: Companion package in the [SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl) ecosystem focused on scalable manifold learning, non-linear dimensionality reduction, and metric embeddings. It provides complementary algorithms (such as LapMaps, Laplacian Eigenmaps, and UMAP-compatible projections) natively designed to operate on similarity search graphs and arbitrary metric structures.
+- **[UMAP.jl](https://github.com/dillondaudert/UMAP.jl)**: A Julia implementation of the Uniform Manifold Approximation and Projection (UMAP) algorithm for dimension reduction.
+- **[SimilaritySearch.jl](https://github.com/sadit/SimilaritySearch.jl)**: High-performance similarity search and approximate nearest neighbor index structures in Julia.
+
+---
+
 ## 📚 Reference
 
 - Amid, E., & Warmuth, M. K. (2019). *TriMAP: Large-scale Dimensionality Reduction Using Triplets*. arXiv preprint [arXiv:1910.00204](https://arxiv.org/abs/1910.00204).
@@ -122,3 +130,4 @@ Y_new = predict(pmodel, X_new) # (2, 100) Matrix{Float32}
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
