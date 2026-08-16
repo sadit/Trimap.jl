@@ -29,7 +29,7 @@ using LinearAlgebra
     knns_approx, dists_approx = allknn(G, ctx, k)
 
     @testset "Triplet generation" begin
-        # Default proportional generation (2/3 k and 1/3 k)
+        # Default proportional generation (3/4 k and 1/4 k)
         i0, j0, k0, w0 = generate_triplets(knns_exact, dists_exact)
         @test length(i0) == length(j0) == length(k0) == length(w0)
         @test length(i0) > 0

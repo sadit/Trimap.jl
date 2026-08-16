@@ -141,7 +141,7 @@ Plot(traces_trimap_moons, Config(title="Two Moons: TriMAP 2D Projection (SearchG
 
 Complex spiral structures are notoriously challenging for dimensionality reduction methods because standard random negative sampling can mistakenly pull distant spiral arms together across gaps.
 
-By choosing negative samples from **Farthest First Traversal (`fft`)** landmarks and weighting them by their Voronoi basin sizes (`sample_probs` from `res.nn`), TriMAP achieves clean global unwrapping.
+Below we first fit TriMAP with the default uniform random negative sampling (§2.4), then compare it against negative samples drawn from **Farthest First Traversal (`fft`)** landmarks and weighted by their Voronoi basin sizes (`sample_probs` from `res.nn`, §2.5). `fft`/`sample_probs` sampling is most useful on large datasets, where it concentrates negative samples on a small, diverse landmark set instead of drawing uniformly from all `n` points — it does not, by itself, fix the local inlier/outlier margin pressure that causes the artifacts you'll see below on this particular tightly-wound toy manifold.
 
 ### 2.1 Generating and Visualizing 2D Spiral Data
 
@@ -252,7 +252,7 @@ for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
 end
 
 layout_spirals = Config(
-    title = "3 Spirals: TriMAP 2D Embedding",
+    title = "3 Spirals: TriMAP 2D Embedding (uniform random negatives)",
     xaxis = Config(title = "TriMAP 1", zeroline=false),
     yaxis = Config(title = "TriMAP 2", zeroline=false),
     hovermode = "closest"
@@ -260,3 +260,56 @@ layout_spirals = Config(
 
 Plot(traces_trimap_spirals, layout_spirals)
 ```
+
+### 2.5 TriMAP with `fft`/`sample_probs` Negative Sampling
+
+Instead of drawing negative samples uniformly from all `n` points, we pick a diverse landmark set with Farthest First Traversal (`fft`) and weight each landmark by how many points fall into its Voronoi cell (`res_fft.nn` counts). This concentrates the "global" (`n_random`) triplets on a small representative sample instead of the full dataset — useful when `n` is large and uniform sampling becomes wasteful or noisy.
+
+```@example spirals
+res_fft = fft(Dist.L2(), db_spirals, 60)
+sample_centers = res_fft.centers
+
+counts = Dict{UInt32, Float32}()
+for c in res_fft.nn
+    counts[c] = get(counts, c, 0f0) + 1f0
+end
+sample_probs = Float32[get(counts, c, 0f0) / length(res_fft.nn) for c in sample_centers]
+
+model_spirals_fft = fit(
+    Trimap,
+    X_spirals,
+    knns_spirals,
+    dists_spirals;
+    sample=sample_centers,
+    sample_probs=sample_probs,
+    maxoutdim=2,
+    weight_adj=0.15,
+    n_epochs=400,
+    learning_rate=0.1
+)
+
+Y_spirals_fft = model_spirals_fft.embedding
+
+traces_trimap_spirals_fft = Config[]
+for arm_name in ["Spiral 1", "Spiral 2", "Spiral 3"]
+    idx = findall(==(arm_name), labels_spirals)
+    push!(traces_trimap_spirals_fft, Config(
+        x = Y_spirals_fft[1, idx],
+        y = Y_spirals_fft[2, idx],
+        mode = "markers",
+        name = arm_name,
+        marker = Config(size=4, color=colors[arm_name], opacity=0.85)
+    ))
+end
+
+layout_spirals_fft = Config(
+    title = "3 Spirals: TriMAP 2D Embedding (fft landmark negatives)",
+    xaxis = Config(title = "TriMAP 1", zeroline=false),
+    yaxis = Config(title = "TriMAP 2", zeroline=false),
+    hovermode = "closest"
+)
+
+Plot(traces_trimap_spirals_fft, layout_spirals_fft)
+```
+
+On this specific dataset the two runs look similar: the three arms are a single continuous 1D curve each, with no real cluster boundary between "near" and "far" neighbors along the same arm, so the inlier/outlier margin mechanism (designed for clustered data) fights the smoothness of the curve regardless of how negative samples are drawn. `fft`/`sample_probs` sampling pays off most on datasets with genuine cluster structure and large `n`, such as the [FashionMNIST tutorial](tutorial_fashion_mnist.md).

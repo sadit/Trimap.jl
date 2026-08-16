@@ -19,8 +19,8 @@ Generates TriMAP triplet constraints `(i, j, k)` where item `j` is closer to `i`
 # Keyword Arguments
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g., `Vector{UInt32}` from `fft(dist, db, k).centers` or `AbstractMatrix{Float32}`). If `nothing` (default), negative samples are drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 2k/3)`.
-- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/3)`.
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 3k/4)`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/4)`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
 - `rng`: Random number generator for negative sampling. Default: `Random.default_rng()`.
@@ -102,8 +102,8 @@ function generate_triplets(
     size(knns) == size(dists) || throw(DimensionMismatch("knns and dists must have identical dimensions; got $(size(knns)) and $(size(dists))"))
     k_knn, n = size(knns)
 
-    n_inliers_val = n_inliers === nothing ? max(1, round(Int, 2 * k_knn / 3)) : Int(n_inliers)
-    n_outliers_val = n_outliers === nothing ? max(1, round(Int, k_knn / 3)) : Int(n_outliers)
+    n_inliers_val = n_inliers === nothing ? max(1, round(Int, 3 * k_knn / 4)) : Int(n_inliers)
+    n_outliers_val = n_outliers === nothing ? max(1, round(Int, k_knn / 4)) : Int(n_outliers)
     n_random_val = n_random === nothing ? n_outliers_val : Int(n_random)
 
     # Determine sample source for random negative sampling (indices or range)

@@ -28,6 +28,7 @@ makedocs(
             "Iris Dataset" => "tutorial_iris.md",
             "Two Moons and Spirals" => "tutorial_moons_spirals.md",
             "Prime Factorization" => "tutorial_prime_factors.md",
+            "FashionMNIST" => "tutorial_fashion_mnist.md",
         ],
     ]
 )

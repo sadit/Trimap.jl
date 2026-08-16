@@ -35,10 +35,10 @@ function pca_init(X::AbstractMatrix{Float32}, out_dim::Integer; scale::Real=0.01
     Xc = X .- X_mean
     # SVD of centered data
     F = svd(Xc)
-    # Principal components projection:
-    k = min(out_dim, size(F.Vt, 1))
+    # Principal component scores: Xc = U*S*Vt, so U'*Xc = S*Vt (top-k rows)
+    k = min(out_dim, length(F.S))
     Y = zeros(Float32, out_dim, n)
-    Y[1:k, :] .= F.Vt[1:k, :]
+    Y[1:k, :] .= F.S[1:k] .* F.Vt[1:k, :]
     Y .* Float32(scale)
 end
 
@@ -71,8 +71,8 @@ Fits non-parametric TriMAP dimensionality reduction given high-dimensional featu
 - `Y_init`: Initial embedding matrix of size `(maxoutdim, n)`. If `nothing` (default), initialized via `pca_init(X, maxoutdim)`. Pass `:random` for Gaussian noise.
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 2k/3)`.
-- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/3)`.
+- `n_inliers`: Number of nearest neighbors treated as inliers (local structure). Default: `round(Int, 3k/4)`.
+- `n_outliers`: Number of further neighbors treated as margin outliers. Default: `round(Int, k/4)`.
 - `n_random`: Number of random negative samples per inlier (global structure). Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter controlling the influence of distance gaps. Default: `0.1`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
@@ -234,8 +234,8 @@ Fits a Parametric TriMAP model using a neural network (`Lux`), training on high-
 - `hidden_dims`: Tuple of hidden layer dimensions for default MLP (default: `(128, 64)`).
 - `sample`: Optional subset of sample points / landmarks from which negative samples are drawn (e.g. `Vector{UInt32}` from `fft(dist, db, k).centers`). If `nothing` (default), negative samples are uniformly drawn from `1:n`.
 - `sample_probs`: Optional vector of sampling probabilities or weights corresponding to each element in `sample` (or `1:n`). If `nothing` (default), uniform sampling is used.
-- `n_inliers`: Number of inlier neighbors. Default: `round(Int, 2k/3)`.
-- `n_outliers`: Number of outlier neighbors. Default: `round(Int, k/3)`.
+- `n_inliers`: Number of inlier neighbors. Default: `round(Int, 3k/4)`.
+- `n_outliers`: Number of outlier neighbors. Default: `round(Int, k/4)`.
 - `n_random`: Number of random negative samples. Default: equal to `n_outliers`.
 - `weight_adj`: Weight adjustment parameter. Default: `0.1`.
 - `opt`: Optimizer instance from `Optimisers.jl` (default: `AdamW(learning_rate)`).
@@ -363,15 +363,6 @@ function fit(
     )
 
     ParametricTrimap(net, ps, st)
-end
-
-# Module-level convenience dispatch: fit(Trimap, X, knns, dists; ...)
-function fit(m::Module, X::AbstractMatrix, knns::AbstractMatrix{UInt32}, dists::AbstractMatrix{Float32}; kwargs...)
-    if nameof(m) === :Trimap
-        fit(ParametricTrimap, X, knns, dists; kwargs...)
-    else
-        throw(MethodError(fit, (m, X, knns, dists)))
-    end
 end
 
 """
